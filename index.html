@@ -380,12 +380,45 @@ function Home({ setActive, th }) {
 
 // ── ONBOARDING ────────────────────────────────────────────────────────────────
 
-function Onboarding({ onComplete, th }) {
+// ── WEATHER API ───────────────────────────────────────────────────────────────
+
+const DEST_COORDS = {
+  BCN: { lat: 41.39, lon: 2.17 },
+  LIS: { lat: 38.72, lon: -9.14 },
+  PMI: { lat: 39.57, lon: 2.65 },
+  ATH: { lat: 37.98, lon: 23.73 },
+  AMS: { lat: 52.37, lon: 4.90 },
+  CDG: { lat: 48.86, lon: 2.35 },
+  FCO: { lat: 41.90, lon: 12.49 },
+  MAD: { lat: 40.42, lon: -3.70 },
+  DUB: { lat: 53.33, lon: -6.25 },
+  PRG: { lat: 50.08, lon: 14.44 },
+};
+
+async function fetchWeather(iata, dateStr) {
+  const coords = DEST_COORDS[iata];
+  if (!coords) return null;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto&start_date=${dateStr}&end_date=${dateStr}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const max = Math.round(data.daily?.temperature_2m_max?.[0] || 0);
+    const min = Math.round(data.daily?.temperature_2m_min?.[0] || 0);
+    const code = data.daily?.weathercode?.[0] || 0;
+    const emoji = code === 0 ? "☀️" : code <= 3 ? "🌤" : code <= 48 ? "🌥" : code <= 67 ? "🌧" : code <= 77 ? "❄️" : "⛈";
+    return { max, min, emoji };
+  } catch {
+    return null;
+  }
+}
+
+function Onboarding({ onComplete, onBack, th }) {
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState({
     traveler: "Solo", airport: "MUC", duration: "4 Tage",
     dateFrom: todayPlus(7), dateTo: todayPlus(11),
-    budget: 500, hotel: "hotel3", vibes: [], temp: 0, activity: "Moderat", excl: "",
+    budget: 500, hotel: "hotel3", vibes: [], temp: 22, activity: [],
+    style: "", climate: "", excl: "",
   });
 
   function upd(k, v) { setProfile(p => ({ ...p, [k]: v })); }
@@ -397,22 +430,48 @@ function Onboarding({ onComplete, th }) {
   }
 
   const STEPS = [
-    { title: "Wie reist du?", sub: "Das beeinflusst alle weiteren Vorschläge" },
-    { title: "Von wo und wann?", sub: "Abflughafen und Reisezeitraum" },
-    { title: "Budget & Unterkunft", sub: "Wie viel möchtest du ausgeben?" },
-    { title: "Was soll die Reise bieten?", sub: "Wähle alles was passt" },
-    { title: "Fast fertig!", sub: "Dein Reiseprofil auf einen Blick" },
+    { title: "Wie reist du?", sub: "Das beeinflusst alle Vorschläge" },
+    { title: "Abflug & Zeitraum", sub: "Von wo und wann fliegst du?" },
+    { title: "Dein Reisestil", sub: "Wie möchtest du reisen?" },
+    { title: "Aktivitäten & Klima", sub: "Was willst du erleben?" },
+    { title: "Budget & Unterkunft", sub: "Was passt zu dir?" },
+    { title: "Dein Traumort", sub: "Letzte Details für perfekte Treffer" },
+    { title: "Alles stimmt!", sub: "Dein Reiseprofil auf einen Blick" },
   ];
 
   const isLast = step === STEPS.length - 1;
   const prog = Math.round(((step + 1) / STEPS.length) * 100);
 
+  const ACTIVITIES = [
+    "Strand & Schwimmen", "Wandern & Natur", "Städte erkunden",
+    "Essen & Kulinarik", "Nightlife & Party", "Kultur & Museen",
+    "Wassersport", "Wellness & Spa", "Abenteuer & Outdoor",
+    "Shopping", "Radfahren", "Entspannen & Nichts tun",
+  ];
+
+  const CLIMATES = [
+    { label: "Heiß", desc: "28°C+", emoji: "☀️" },
+    { label: "Warm", desc: "22–28°C", emoji: "🌤" },
+    { label: "Mild", desc: "15–22°C", emoji: "🌥" },
+    { label: "Kühl", desc: "unter 15°C", emoji: "🌨" },
+    { label: "Egal", desc: "Hauptsache weg", emoji: "✈️" },
+  ];
+
+  const STYLES = [
+    { id: "budget", label: "Budget-Reise", desc: "Günstig & authentisch", icon: "bed" },
+    { id: "comfort", label: "Komfort", desc: "Gutes Preis-Leistungs-Verhältnis", icon: "hotel" },
+    { id: "luxury", label: "Luxus", desc: "Das Beste vom Besten", icon: "star" },
+    { id: "adventure", label: "Abenteuer", desc: "Außergewöhnliche Erlebnisse", icon: "route" },
+    { id: "culture", label: "Kultur & Entdecken", desc: "Geschichte & lokales Leben", icon: "map" },
+  ];
+
   const renderStep = () => {
     if (step === 0) return (
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         {[["Solo", "Nur ich"], ["Zu zweit", "Pärchen"], ["Gruppe", "3-6 Personen"], ["Familie", "Mit Kindern"]].map(([label, desc]) => (
-          <div key={label} onClick={() => upd("traveler", label)} style={{ background: profile.traveler === label ? th.accentLight : th.surfaceAlt, border: `1.5px solid ${profile.traveler === label ? th.accent : th.border}`, borderRadius: 12, padding: 14, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: profile.traveler === label ? th.accent : th.text }}>{label}</div>
+          <div key={label} onClick={() => upd("traveler", label)} style={{ background: profile.traveler === label ? th.accentLight : th.surfaceAlt, border: `2px solid ${profile.traveler === label ? th.accent : th.border}`, borderRadius: 14, padding: 16, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+            <div style={{ fontSize: 22, marginBottom: 6 }}>{label === "Solo" ? "🧳" : label === "Zu zweit" ? "💑" : label === "Gruppe" ? "👥" : "👨‍👩‍👧"}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: profile.traveler === label ? th.accent : th.text }}>{label}</div>
             <div style={{ fontSize: 12, color: th.mute, marginTop: 3 }}>{desc}</div>
           </div>
         ))}
@@ -424,14 +483,14 @@ function Onboarding({ onComplete, th }) {
         <div style={{ fontSize: 12, color: th.mute, marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>Abflughafen</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
           {AIRPORTS.map(a => (
-            <div key={a.code} onClick={() => upd("airport", a.code)} style={{ background: profile.airport === a.code ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.airport === a.code ? th.accent : th.border}`, borderRadius: 20, padding: "6px 12px", cursor: "pointer", fontSize: 13, color: profile.airport === a.code ? th.accent : th.sub, WebkitTapHighlightColor: "transparent" }}>
+            <div key={a.code} onClick={() => upd("airport", a.code)} style={{ background: profile.airport === a.code ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.airport === a.code ? th.accent : th.border}`, borderRadius: 20, padding: "6px 12px", cursor: "pointer", fontSize: 13, color: profile.airport === a.code ? th.accent : th.sub, fontWeight: profile.airport === a.code ? 600 : 400, WebkitTapHighlightColor: "transparent" }}>
               {a.city} ({a.code})
             </div>
           ))}
         </div>
-        <div style={{ fontSize: 12, color: th.mute, marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>Dauer</div>
+        <div style={{ fontSize: 12, color: th.mute, marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>Reisedauer</div>
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          {[["2 Tage", "WE"], ["3 Tage", "Langes WE"], ["5 Tage", "Kurzurlaub"], ["7 Tage", "1 Woche"]].map(([val, label]) => (
+          {[["2 Tage", "WE"], ["3 Tage", "Langes WE"], ["5 Tage", "Kurzurlaub"], ["7 Tage", "1 Woche"], ["14 Tage", "2 Wochen"]].map(([val, label]) => (
             <div key={val} onClick={() => upd("duration", val)} style={{ flex: 1, background: profile.duration === val ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.duration === val ? th.accent : th.border}`, borderRadius: 10, padding: "10px 4px", cursor: "pointer", textAlign: "center", WebkitTapHighlightColor: "transparent" }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: profile.duration === val ? th.accent : th.text }}>{label}</div>
               <div style={{ fontSize: 10, color: th.mute, marginTop: 2 }}>{val}</div>
@@ -450,9 +509,53 @@ function Onboarding({ onComplete, th }) {
     );
 
     if (step === 2) return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {STYLES.map(s => (
+          <div key={s.id} onClick={() => upd("style", s.id)} style={{ display: "flex", alignItems: "center", gap: 12, background: profile.style === s.id ? th.accentLight : th.surfaceAlt, border: `2px solid ${profile.style === s.id ? th.accent : th.border}`, borderRadius: 14, padding: "14px 16px", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+            <div style={{ width: 40, height: 40, background: profile.style === s.id ? th.accent : th.border, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name={s.icon} size={18} color={profile.style === s.id ? th.bg : th.mute} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: profile.style === s.id ? th.accent : th.text }}>{s.label}</div>
+              <div style={{ fontSize: 12, color: th.mute, marginTop: 2 }}>{s.desc}</div>
+            </div>
+            {profile.style === s.id && <Icon name="check" size={18} color={th.accent} />}
+          </div>
+        ))}
+      </div>
+    );
+
+    if (step === 3) return (
       <div>
-        <div style={{ fontSize: 12, color: th.mute, marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>Budget pro Person</div>
-        <div style={{ fontSize: 32, fontWeight: 700, color: th.accent, marginBottom: 12 }}>{profile.budget} €</div>
+        <div style={{ fontSize: 12, color: th.mute, marginBottom: 10, fontWeight: 600, textTransform: "uppercase" }}>Aktivitäten (mehrere wählbar)</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+          {ACTIVITIES.map(a => (
+            <div key={a} onClick={() => toggleArr("activity", a)} style={{ background: profile.activity.includes(a) ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.activity.includes(a) ? th.accent : th.border}`, borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 13, color: profile.activity.includes(a) ? th.accent : th.sub, fontWeight: profile.activity.includes(a) ? 600 : 400, WebkitTapHighlightColor: "transparent" }}>{a}</div>
+          ))}
+        </div>
+        <div style={{ fontSize: 12, color: th.mute, marginBottom: 10, fontWeight: 600, textTransform: "uppercase" }}>Gewünschtes Klima</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {CLIMATES.map(c => (
+            <div key={c.label} onClick={() => upd("climate", c.label)} style={{ flex: 1, background: profile.climate === c.label ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.climate === c.label ? th.accent : th.border}`, borderRadius: 12, padding: "10px 6px", cursor: "pointer", textAlign: "center", WebkitTapHighlightColor: "transparent" }}>
+              <div style={{ fontSize: 18, marginBottom: 4 }}>{c.emoji}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: profile.climate === c.label ? th.accent : th.text }}>{c.label}</div>
+              <div style={{ fontSize: 10, color: th.mute, marginTop: 2 }}>{c.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    if (step === 4) return (
+      <div>
+        <div style={{ fontSize: 12, color: th.mute, marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>Budget pro Person (inkl. Flug & Hotel)</div>
+        <div style={{ fontSize: 36, fontWeight: 700, color: th.accent, marginBottom: 4 }}>{profile.budget} €</div>
+        <input type="range" min="100" max="5000" step="50" value={profile.budget}
+          onInput={e => upd("budget", parseInt(e.target.value))}
+          style={{ width: "100%", accentColor: th.accent, marginBottom: 6 }} />
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: th.mute, marginBottom: 20 }}>
+          <span>100 €</span><span>5.000 €</span>
+        </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
           {[200, 400, 700, 1200, 2000].map(b => (
             <div key={b} onClick={() => upd("budget", b)} style={{ flex: 1, background: profile.budget === b ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.budget === b ? th.accent : th.border}`, borderRadius: 8, padding: "8px 4px", cursor: "pointer", textAlign: "center", fontSize: 11, color: profile.budget === b ? th.accent : th.sub, WebkitTapHighlightColor: "transparent" }}>{b}</div>
@@ -477,18 +580,41 @@ function Onboarding({ onComplete, th }) {
       </div>
     );
 
-    if (step === 3) return (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {(VIBES[profile.traveler] || VIBES.Gruppe).map(v => (
-          <div key={v} onClick={() => toggleArr("vibes", v)} style={{ background: profile.vibes.includes(v) ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.vibes.includes(v) ? th.accent : th.border}`, borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 13, color: profile.vibes.includes(v) ? th.accent : th.sub, fontWeight: profile.vibes.includes(v) ? 600 : 400, WebkitTapHighlightColor: "transparent" }}>{v}</div>
-        ))}
+    if (step === 5) return (
+      <div>
+        <div style={{ fontSize: 12, color: th.mute, marginBottom: 10, fontWeight: 600, textTransform: "uppercase" }}>Bestimmte Regionen oder Länder?</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+          {["Europa", "Mittelmeer", "Karibik", "Asien", "USA & Kanada", "Naher Osten", "Afrika", "Überrasch mich!"].map(r => (
+            <div key={r} onClick={() => upd("region", profile.region === r ? "" : r)} style={{ background: profile.region === r ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.region === r ? th.accent : th.border}`, borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 13, color: profile.region === r ? th.accent : th.sub, fontWeight: profile.region === r ? 600 : 400, WebkitTapHighlightColor: "transparent" }}>{r}</div>
+          ))}
+        </div>
+        <div style={{ fontSize: 12, color: th.mute, marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>Städte ausschließen?</div>
+        <input value={profile.excl || ""} onChange={e => upd("excl", e.target.value)} placeholder="z.B. Mallorca, Barcelona..." style={{ width: "100%", background: th.surfaceAlt, border: `1px solid ${th.border}`, borderRadius: 10, padding: "12px 14px", color: th.text, outline: "none", marginBottom: 16 }} />
+        <div style={{ fontSize: 12, color: th.mute, marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>Flugzeit-Präferenz</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {["Frühflug (5–9 Uhr)", "Vormittag (9–13 Uhr)", "Nachmittag (13–18 Uhr)", "Abend (18–23 Uhr)", "Egal – günstigster"].map(f => (
+            <div key={f} onClick={() => upd("flightPref", profile.flightPref === f ? "" : f)} style={{ background: profile.flightPref === f ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.flightPref === f ? th.accent : th.border}`, borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 12, color: profile.flightPref === f ? th.accent : th.sub, fontWeight: profile.flightPref === f ? 600 : 400, WebkitTapHighlightColor: "transparent" }}>{f}</div>
+          ))}
+        </div>
       </div>
     );
 
     const hotelLabel = HOTEL_CATS.find(c => c.id === profile.hotel)?.label || profile.hotel;
+    const styleLabel = { budget: "Budget", comfort: "Komfort", luxury: "Luxus", adventure: "Abenteuer", culture: "Kultur" }[profile.style] || "-";
     return (
       <div style={{ background: th.surfaceAlt, borderRadius: 14, padding: 16, border: `1px solid ${th.border}` }}>
-        {[["Reiseart", profile.traveler], ["Von", profile.airport], ["Zeitraum", `${profile.dateFrom} → ${profile.dateTo}`], ["Budget", `${profile.budget} €`], ["Unterkunft", hotelLabel], ["Urlaubstyp", profile.vibes.slice(0, 3).join(", ") || "-"]].map(([k, v]) => (
+        {[
+          ["Reiseart", profile.traveler],
+          ["Von", profile.airport],
+          ["Zeitraum", `${profile.dateFrom} → ${profile.dateTo}`],
+          ["Dauer", profile.duration],
+          ["Budget", `${profile.budget} €`],
+          ["Reisestil", styleLabel],
+          ["Klima", profile.climate || "-"],
+          ["Aktivitäten", profile.activity.slice(0, 2).join(", ") || "-"],
+          ["Unterkunft", hotelLabel],
+          ["Region", profile.region || "Weltweit"],
+        ].map(([k, v]) => (
           <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${th.border}` }}>
             <span style={{ fontSize: 13, color: th.mute }}>{k}</span>
             <span style={{ fontSize: 13, color: th.text, fontWeight: 500, textAlign: "right", maxWidth: "60%" }}>{v}</span>
@@ -503,23 +629,23 @@ function Onboarding({ onComplete, th }) {
       <div style={{ height: 3, background: th.border, flexShrink: 0, display: "flex" }}>
         <div style={{ height: 3, background: th.accent, width: `${prog}%`, transition: "width .3s" }} />
       </div>
-      <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
-        <div style={{ fontSize: 11, color: th.mute, marginBottom: 6, textTransform: "uppercase" }}>Schritt {step + 1} von {STEPS.length}</div>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: th.text, marginBottom: 4 }}>{STEPS[step].title}</h2>
-        <p style={{ fontSize: 13, color: th.mute, marginBottom: 16 }}>{STEPS[step].sub}</p>
+      <div style={{ padding: "12px 16px 0", flexShrink: 0, display: "flex", alignItems: "center", gap: 10 }}>
+        <button onClick={() => step === 0 ? onBack() : setStep(s => s - 1)} style={{ width: 36, height: 36, background: th.surfaceAlt, border: `1px solid ${th.border}`, borderRadius: 10, color: th.sub, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Icon name="arrowLeft" size={16} color={th.sub} />
+        </button>
+        <div>
+          <div style={{ fontSize: 11, color: th.mute, textTransform: "uppercase" }}>Schritt {step + 1} von {STEPS.length}</div>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: th.text }}>{STEPS[step].title}</h2>
+          <p style={{ fontSize: 12, color: th.mute }}>{STEPS[step].sub}</p>
+        </div>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 16px", WebkitOverflowScrolling: "touch" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", WebkitOverflowScrolling: "touch" }}>
         {renderStep()}
         <div style={{ height: 16 }} />
       </div>
-      <div style={{ padding: 16, borderTop: `1px solid ${th.border}`, flexShrink: 0, display: "flex", gap: 10, background: th.bg }}>
-        {step > 0 && (
-          <button onClick={() => setStep(s => s - 1)} style={{ width: 48, height: 44, background: th.surfaceAlt, border: `1px solid ${th.border}`, borderRadius: 10, color: th.sub, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Icon name="arrowLeft" size={18} color={th.sub} />
-          </button>
-        )}
-        <button onClick={() => isLast ? onComplete(profile) : setStep(s => s + 1)} style={{ flex: 1, height: 44, background: th.accent, border: "none", borderRadius: 10, color: th.bg, fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, WebkitTapHighlightColor: "transparent" }}>
-          {isLast ? "Flüge suchen" : "Weiter"}
+      <div style={{ padding: 16, borderTop: `1px solid ${th.border}`, flexShrink: 0, background: th.bg }}>
+        <button onClick={() => isLast ? onComplete(profile) : setStep(s => s + 1)} style={{ width: "100%", height: 48, background: th.accent, border: "none", borderRadius: 12, color: th.bg, fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, WebkitTapHighlightColor: "transparent" }}>
+          {isLast ? "Traumreise finden" : "Weiter"}
           <Icon name={isLast ? "search" : "arrowRight"} size={16} color={th.bg} />
         </button>
       </div>
@@ -529,7 +655,7 @@ function Onboarding({ onComplete, th }) {
 
 // ── RESULTS ───────────────────────────────────────────────────────────────────
 
-function Results({ profile, savedTrips, onSave, onBook, th }) {
+function Results({ profile, savedTrips, onSave, onBook, onHome, th }) {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadMsg, setLoadMsg] = useState("Verbinde mit Duffel API...");
@@ -622,6 +748,9 @@ function Results({ profile, savedTrips, onSave, onBook, th }) {
           <h2 style={{ fontSize: 20, fontWeight: 700, color: th.text }}>Deine Trips</h2>
           <p style={{ fontSize: 13, color: th.mute, marginTop: 2 }}>{profile.airport} · {profile.duration} · {profile.budget} €</p>
         </div>
+        <button onClick={onHome} style={{ background: th.surfaceAlt, border: `1px solid ${th.border}`, borderRadius: 8, padding: "6px 10px", fontSize: 11, color: th.sub, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, WebkitTapHighlightColor: "transparent", flexShrink: 0 }}>
+          <Icon name="home" size={12} color={th.sub} /> Home
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 5, background: th.accentLight, borderRadius: 20, padding: "4px 10px", border: `1px solid ${th.greenBorder}` }}>
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: th.accent }} />
           <span style={{ fontSize: 11, color: th.accent, fontWeight: 600 }}>Live</span>
@@ -646,9 +775,16 @@ function Results({ profile, savedTrips, onSave, onBook, th }) {
 
 function TripCard({ trip, isBest, isSaved, onSave, onBook, profile, th }) {
   const [imgError, setImgError] = useState(false);
+  const [weather, setWeather] = useState(null);
   const hotelCat = HOTEL_CATS.find(c => c.id === profile?.hotel);
   const imgSrc = imgError ? DEST_IMAGES.default : (DEST_IMAGES[trip.iata] || DEST_IMAGES.default);
   const iconMap = { hostel: "bed", hotel3: "hotel", hotel4: "star", apartment: "home", airbnb: "key" };
+
+  useEffect(() => {
+    if (trip.iata && profile?.dateFrom) {
+      fetchWeather(trip.iata, profile.dateFrom).then(w => { if (w) setWeather(w); });
+    }
+  }, [trip.iata, profile?.dateFrom]);
 
   return (
     <div style={{ background: th.surface, border: `${isBest ? "2px" : "1px"} solid ${isBest ? th.accent : th.border}`, borderRadius: 16, overflow: "hidden", boxShadow: th.shadow }}>
@@ -656,7 +792,12 @@ function TripCard({ trip, isBest, isSaved, onSave, onBook, profile, th }) {
         <img src={imgSrc} onError={() => setImgError(true)} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt={trip.dest} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.7))" }} />
         {isBest && <div style={{ position: "absolute", top: 10, left: 10, background: th.accent, borderRadius: 20, padding: "3px 10px", fontSize: 11, color: th.bg, fontWeight: 700 }}>Beste Wahl</div>}
-        {trip.temp && trip.temp !== "–" && <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", borderRadius: 20, padding: "3px 8px", fontSize: 11, color: "#fff", fontWeight: 500 }}>{trip.temp}</div>}
+        {weather && (
+          <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.7)", borderRadius: 20, padding: "4px 10px", fontSize: 12, color: "#fff", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+            <span>{weather.emoji}</span>
+            <span>{weather.max}°/{weather.min}°</span>
+          </div>
+        )}
         {hotelCat && (
           <div style={{ position: "absolute", bottom: 10, left: 10, background: "rgba(0,0,0,0.7)", borderRadius: 20, padding: "3px 10px", fontSize: 11, color: "#fff", display: "flex", alignItems: "center", gap: 5 }}>
             <Icon name={iconMap[hotelCat.id] || "hotel"} size={12} color="#fff" />
@@ -1029,8 +1170,8 @@ function TripFind() {
 
   const pages = {
     home: <Home setActive={setActive} th={th} />,
-    onboarding: <Onboarding onComplete={p => { setProfile(p); setActive("results"); }} th={th} />,
-    results: <Results profile={profile} savedTrips={savedTrips} onSave={onSave} onBook={onBook} th={th} />,
+    onboarding: <Onboarding onComplete={p => { setProfile(p); setActive("results"); }} onBack={() => setActive("home")} th={th} />,
+    results: <Results profile={profile} savedTrips={savedTrips} onSave={onSave} onBook={onBook} onHome={() => setActive("home")} th={th} />,
     booking: bookingTrip ? <Booking trip={bookingTrip} profile={profile} onBack={() => setActive("results")} showToast={showToast} th={th} /> : null,
     saved: <Saved savedTrips={savedTrips} onRemove={id => setSavedTrips(s => s.filter(x => x.id !== id && x.dest !== id))} onBook={onBook} th={th} />,
     assistent: <Assistent profile={profile} th={th} />,
