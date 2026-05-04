@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+  <meta name="theme-color" content="#080808"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <title>TripFind – Spontanreise-Finder</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body,#root{height:100%;height:100dvh}
+    body{font-family:'DM Sans',system-ui,sans-serif;background:#080808;color:#fff;overflow:hidden;-webkit-font-smoothing:antialiased}
+    ::-webkit-scrollbar{display:none}
+    *{scrollbar-width:none}
+    input,textarea,select{font-size:16px!important;font-family:inherit}
+    button{-webkit-tap-highlight-color:transparent;font-family:inherit}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes bounce0{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+    @keyframes bounce1{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+    @keyframes bounce2{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+
+
+const DUFFEL_KEY = "duffel_test_NgeulwuLyUeLmoljCWzNb9Uk38CalafW10FhkS5X-DL";
+
+const THEMES = {
+  dark: {
+    bg:"#080808", surface:"#111111", surfaceAlt:"#161616",
+    border:"#222222", text:"#ffffff", sub:"#888888", mute:"#555555",
+    accent:"#00E5A0", accentLight:"#0d1f1a",
+    green:"#00E5A0", greenLight:"#0d1f1a", greenBorder:"#00E5A040",
+    amber:"#FBB040", amberLight:"#1C1100", amberBorder:"#78430A",
+    red:"#F87171", redLight:"#1C0808", redBorder:"#7F1D1D",
+    shadow:"0 2px 8px rgba(0,0,0,0.4)", shadowLg:"0 8px 24px rgba(0,0,0,0.6)",
+  },
+  light: {
+    bg:"#F5F5F0", surface:"#FFFFFF", surfaceAlt:"#F0EDE8",
+    border:"#E0DDD8", text:"#1A1714", sub:"#5C574F", mute:"#9C9589",
+    accent:"#0A7A56", accentLight:"#E8F6EE",
+    green:"#0A7A56", greenLight:"#E8F6EE", greenBorder:"#A3D9BA",
+    amber:"#92500A", amberLight:"#FEF5E7", amberBorder:"#F5C87A",
+    red:"#B91C1C", redLight:"#FEF2F2", redBorder:"#FCA5A5",
+    shadow:"0 2px 8px rgba(0,0,0,0.08)", shadowLg:"0 8px 24px rgba(0,0,0,0.12)",
+  },
+};
+
+const AIRPORTS = [
+  {code:"MUC",city:"München"},{code:"FRA",city:"Frankfurt"},
+  {code:"BER",city:"Berlin"},{code:"DUS",city:"Düsseldorf"},
+  {code:"HAM",city:"Hamburg"},{code:"STR",city:"Stuttgart"},
+  {code:"CGN",city:"Köln"},{code:"VIE",city:"Wien"},
+  {code:"ZRH",city:"Zürich"},{code:"NUE",city:"Nürnberg"},
+];
+
+const VIBES = {
+  Solo:["Party & Nightlife","Neue Menschen","Abenteuer","Rucksackreise","Kultur","Entspannung","Großstadt","Natur","Strand"],
+  "Zu zweit":["Romantik","Strand","Stadtbummel","Essen & Trinken","Wellness","Natur","Kultur","Abenteuer"],
+  Gruppe:["Party","Strand","Abenteuer","Städtetrip","Essen & Trinken","Wassersport"],
+  Familie:["Strand","Freizeitpark","Kinderfreundlich","Natur","Entspannung","Kultur"],
+};
+
+const HOTEL_CATS = [
+  {id:"hostel", label:"Hostel", desc:"Günstig & sozial"},
+  {id:"hotel3", label:"3 Sterne Hotel", desc:"Komfort & Preis"},
+  {id:"hotel4", label:"4-5 Sterne Hotel", desc:"Premium & Luxus"},
+  {id:"apartment", label:"Ferienwohnung", desc:"Wie zu Hause"},
+  {id:"airbnb", label:"Airbnb", desc:"Einzigartige Unterkünfte"},
+];
+
+const DEST_IMAGES = {
+  BCN:"https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=600&q=80",
+  LIS:"https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=600&q=80",
+  PMI:"https://images.unsplash.com/photo-1570737060985-4c3f90011a83?w=600&q=80",
+  ATH:"https://images.unsplash.com/photo-1555993539-1732b0258235?w=600&q=80",
+  AMS:"https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=600&q=80",
+  CDG:"https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=600&q=80",
+  FCO:"https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=600&q=80",
+  MAD:"https://images.unsplash.com/photo-1543785734-4b6e564642f8?w=600&q=80",
+  DUB:"https://images.unsplash.com/photo-1549918864-48ac978761a4?w=600&q=80",
+  PRG:"https://images.unsplash.com/photo-1541849546-216549ae216d?w=600&q=80",
+  default:"https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=600&q=80",
+};
+
+const TRENDING = [
+  {dest:"Barcelona", country:"Spanien", iata:"BCN", temp:"26°"},
+  {dest:"Lissabon", country:"Portugal", iata:"LIS", temp:"22°"},
+  {dest:"Mallorca", country:"Spanien", iata:"PMI", temp:"28°"},
+  {dest:"Athen", country:"Griechenland", iata:"ATH", temp:"30°"},
+  {dest:"Amsterdam", country:"Niederlande", iata:"AMS", temp:"18°"},
+  {dest:"Paris", country:"Frankreich", iata:"CDG", temp:"20°"},
+];
+
+// Popular EU destinations for spontaneous trips from Germany
+const SPONTAN_DESTINATIONS = [
+  {dest:"Barcelona", iata:"BCN", country:"Spanien"},
+  {dest:"Lissabon", iata:"LIS", country:"Portugal"},
+  {dest:"Amsterdam", iata:"AMS", country:"Niederlande"},
+  {dest:"Paris", iata:"CDG", country:"Frankreich"},
+  {dest:"Rom", iata:"FCO", country:"Italien"},
+  {dest:"Madrid", iata:"MAD", country:"Spanien"},
+  {dest:"Dublin", iata:"DUB", country:"Irland"},
+  {dest:"Prag", iata:"PRG", country:"Tschechien"},
+  {dest:"Athen", iata:"ATH", country:"Griechenland"},
+  {dest:"Mallorca", iata:"PMI", country:"Spanien"},
+];
+
+function formatPrice(amount) {
+  return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(amount) + " €";
+}
+
+function formatTime(isoStr) {
+  if (!isoStr) return "--:--";
+  return new Date(isoStr).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDuration(mins) {
+  if (!mins) return "";
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}h ${m > 0 ? m + "min" : ""}`;
+}
+
+function todayPlus(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+// ── DUFFEL API ──────────────────────────────────────────────────────────────
+
+async function searchDuffelFlights(origin, destination, depDate, retDate) {
+  try {
+    const body = {
+      data: {
+        slices: [
+          { origin, destination, departure_date: depDate },
+          { origin: destination, destination: origin, departure_date: retDate },
+        ],
+        passengers: [{ type: "adult" }],
+        cabin_class: "economy",
+      },
+    };
+    const res = await fetch(
+      "https://api.duffel.com/air/offer_requests?return_offers=true",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${DUFFEL_KEY}`,
+          "Content-Type": "application/json",
+          "Duffel-Version": "v2",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body),
+      }
+    );
+    const data = await res.json();
+    if (data.errors) return null;
+    const offers = data.data?.offers || [];
+    offers.sort((a, b) => parseFloat(a.total_amount) - parseFloat(b.total_amount));
+    return offers.slice(0, 3);
+  } catch {
+    return null;
+  }
+}
+
+function parseDuffelOffer(offer, destInfo) {
+  if (!offer) return null;
+  const price = Math.round(parseFloat(offer.total_amount));
+  const outSlice = offer.slices?.[0];
+  const seg = outSlice?.segments?.[0];
+  const airline = seg?.marketing_carrier?.name || seg?.operating_carrier?.name || "Fluggesellschaft";
+  const depTime = formatTime(seg?.departing_at);
+  const totalMins = outSlice?.duration ? parseDuration(outSlice.duration) : null;
+  const duration = totalMins ? formatDuration(totalMins) : "";
+  const flightPrice = Math.round(price * 0.55);
+  const hotelPPN = Math.round((price - flightPrice) / 2);
+  return {
+    id: offer.id,
+    dest: destInfo.dest,
+    country: destInfo.country,
+    iata: destInfo.iata,
+    temp: "–",
+    tagline: `Entdecke ${destInfo.dest}`,
+    flightPrice,
+    flightTime: depTime,
+    airline,
+    duration,
+    hotelName: `Hotel in ${destInfo.dest}`,
+    hotelStars: 3,
+    hotelPPN,
+    total: price,
+    tip: price < 300 ? "Super Deal – schnell buchen!" : undefined,
+    highlights: [],
+    best: "",
+    rating: 8.5,
+    duffelOfferId: offer.id,
+  };
+}
+
+function parseDuration(iso) {
+  if (!iso) return 0;
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
+  if (!m) return 0;
+  return (parseInt(m[1] || 0) * 60) + parseInt(m[2] || 0);
+}
+
+// ── SVG ICONS ───────────────────────────────────────────────────────────────
+
+function Icon({ name, size = 16, color = "currentColor" }) {
+  const icons = {
+    plane: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 19 2c-2-2-4-2-5.5-.5L10 5 1.8 6.2a1 1 0 0 0-.5 1.7l2 2 3 .6L4 15l-1 1 3 2 2-1 .6 3 2 2a1 1 0 0 0 1.7-.5z" /></svg>,
+    hotel: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 22V8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14" /><path d="M3 22H21" /><path d="M9 22V12h6v10" /><rect x="9" y="6" width="6" height="3" /></svg>,
+    home: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>,
+    search: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>,
+    heart: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>,
+    heartFill: <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>,
+    map: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" /><line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" /></svg>,
+    bot: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8" y2="16" /><line x1="16" y1="16" x2="16" y2="16" /></svg>,
+    trash: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>,
+    check: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>,
+    arrowRight: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>,
+    arrowLeft: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>,
+    arrowUp: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></svg>,
+    sun: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>,
+    moon: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>,
+    tip: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>,
+    star: <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
+    route: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3" /><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" /><circle cx="18" cy="5" r="3" /></svg>,
+    bed: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4v16" /><path d="M2 8h18a2 2 0 0 1 2 2v10" /><path d="M2 17h20" /><path d="M6 8v9" /></svg>,
+    key: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" /><path d="m21 2-9.6 9.6" /><circle cx="7.5" cy="15.5" r="5.5" /></svg>,
+    ticket: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" /><line x1="9" x2="15" y1="12" y2="12" /></svg>,
+    externalLink: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>,
+  };
+  return icons[name] || null;
+}
+
+// ── PRIMITIVES ───────────────────────────────────────────────────────────────
+
+function Btn({ children, onClick, v = "primary", full, disabled, th, small }) {
+  const styles = {
+    primary: { bg: th.accent, c: th.bg, bd: "transparent" },
+    secondary: { bg: th.surface, c: th.text, bd: th.border },
+    ghost: { bg: "transparent", c: th.sub, bd: "transparent" },
+  };
+  const s = styles[v] || styles.primary;
+  return (
+    <button
+      onClick={disabled ? undefined : onClick}
+      style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        gap: 8, background: s.bg, color: s.c, border: `1px solid ${s.bd}`,
+        borderRadius: 10, padding: small ? "8px 14px" : "12px 18px",
+        minHeight: small ? 36 : 44, fontSize: small ? 13 : 14, fontWeight: 600,
+        cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.4 : 1,
+        width: full ? "100%" : "auto", whiteSpace: "nowrap",
+        WebkitTapHighlightColor: "transparent",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Toast({ msg, type, onDone, th }) {
+  useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t); }, []);
+  const c = { success: th.green, error: th.red, info: th.accent, warning: th.amber }[type] || th.accent;
+  const bg = { success: th.greenLight, error: th.redLight, info: th.accentLight, warning: th.amberLight }[type] || th.accentLight;
+  const bd = { success: th.greenBorder, error: th.redBorder, info: th.accent + "44", warning: th.amberBorder }[type] || th.border;
+  return (
+    <div style={{
+      position: "fixed", bottom: 80, left: 16, right: 16, background: bg,
+      border: `1px solid ${bd}`, borderRadius: 12, padding: "14px 18px",
+      color: c, fontSize: 14, fontWeight: 500, zIndex: 300,
+      boxShadow: th.shadowLg, textAlign: "center",
+    }}>
+      {msg}
+    </div>
+  );
+}
+
+// ── HOME ─────────────────────────────────────────────────────────────────────
+
+function Home({ setActive, th }) {
+  const cats = [
+    { label: "Spontan", sub: "Wochenend-Deals", icon: "plane" },
+    { label: "Strand", sub: "Sonne & Meer", icon: "sun" },
+    { label: "Städtetrip", sub: "Kultur & Lifestyle", icon: "map" },
+    { label: "Natur", sub: "Wandern & Abenteuer", icon: "route" },
+    { label: "Party", sub: "Nightlife Trips", icon: "star" },
+    { label: "Romantik", sub: "Pärchen-Trips", icon: "heartFill" },
+  ];
+  return (
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <div style={{ position: "relative", height: 230, overflow: "hidden", borderRadius: "0 0 24px 24px", marginBottom: 20 }}>
+        <img src={DEST_IMAGES.default} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Reisen" />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,rgba(8,8,8,0.1),rgba(8,8,8,0.85))" }} />
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "20px 20px 28px" }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>Deine nächste Reise</div>
+          <h1 style={{ fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1.2, marginBottom: 14 }}>Wohin geht die Reise?</h1>
+          <button
+            onClick={() => setActive("onboarding")}
+            style={{ background: th.accent, border: "none", borderRadius: 12, padding: "12px 20px", fontSize: 14, fontWeight: 700, color: th.bg, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, WebkitTapHighlightColor: "transparent" }}
+          >
+            <Icon name="search" size={16} color={th.bg} /> Reise planen
+          </button>
+        </div>
+      </div>
+
+      <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 24 }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: th.text, marginBottom: 12 }}>Reiseart</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            {cats.map(c => (
+              <div key={c.label} onClick={() => setActive("onboarding")} style={{ background: th.surface, border: `1px solid ${th.border}`, borderRadius: 12, padding: "12px 8px", cursor: "pointer", textAlign: "center", boxShadow: th.shadow, WebkitTapHighlightColor: "transparent" }}>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 6, color: th.accent }}><Icon name={c.icon} size={20} color={th.accent} /></div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: th.text }}>{c.label}</div>
+                <div style={{ fontSize: 10, color: th.mute, marginTop: 1 }}>{c.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: th.text }}>Trending</div>
+            <span style={{ fontSize: 12, color: th.accent, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }} onClick={() => setActive("onboarding")}>
+              Alle <Icon name="arrowRight" size={12} color={th.accent} />
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
+            {TRENDING.map(t => (
+              <div key={t.dest} onClick={() => setActive("onboarding")} style={{ flexShrink: 0, width: 155, background: th.surface, borderRadius: 14, overflow: "hidden", border: `1px solid ${th.border}`, cursor: "pointer", boxShadow: th.shadow, WebkitTapHighlightColor: "transparent" }}>
+                <div style={{ position: "relative", height: 95 }}>
+                  <img src={DEST_IMAGES[t.iata] || DEST_IMAGES.default} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt={t.dest} />
+                  <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 20, padding: "3px 8px", fontSize: 11, color: "#fff", fontWeight: 500 }}>{t.temp}</div>
+                </div>
+                <div style={{ padding: "10px 10px 12px" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: th.text }}>{t.dest}</div>
+                  <div style={{ fontSize: 11, color: th.mute, marginTop: 1 }}>{t.country}</div>
+                  <div style={{ fontSize: 11, color: th.accent, marginTop: 5, fontWeight: 600 }}>Suchen →</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ paddingBottom: 8 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: th.text, marginBottom: 12 }}>Unterkunft</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {HOTEL_CATS.map(c => {
+              const iconMap = { hostel: "bed", hotel3: "hotel", hotel4: "star", apartment: "home", airbnb: "key" };
+              return (
+                <div key={c.id} onClick={() => setActive("onboarding")} style={{ display: "flex", alignItems: "center", gap: 12, background: th.surface, border: `1px solid ${th.border}`, borderRadius: 12, padding: "12px 14px", cursor: "pointer", boxShadow: th.shadow, WebkitTapHighlightColor: "transparent" }}>
+                  <div style={{ width: 36, height: 36, background: th.accentLight, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Icon name={iconMap[c.id] || "hotel"} size={18} color={th.accent} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: th.text }}>{c.label}</div>
+                    <div style={{ fontSize: 12, color: th.mute, marginTop: 1 }}>{c.desc}</div>
+                  </div>
+                  <Icon name="arrowRight" size={16} color={th.mute} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ONBOARDING ────────────────────────────────────────────────────────────────
+
+function Onboarding({ onComplete, th }) {
+  const [step, setStep] = useState(0);
+  const [profile, setProfile] = useState({
+    traveler: "Solo", airport: "MUC", duration: "4 Tage",
+    dateFrom: todayPlus(7), dateTo: todayPlus(11),
+    budget: 500, hotel: "hotel3", vibes: [], temp: 0, activity: "Moderat", excl: "",
+  });
+
+  function upd(k, v) { setProfile(p => ({ ...p, [k]: v })); }
+  function toggleArr(k, v) {
+    setProfile(p => {
+      const a = p[k] || [];
+      return { ...p, [k]: a.includes(v) ? a.filter(x => x !== v) : [...a, v] };
+    });
+  }
+
+  const STEPS = [
+    { title: "Wie reist du?", sub: "Das beeinflusst alle weiteren Vorschläge" },
+    { title: "Von wo und wann?", sub: "Abflughafen und Reisezeitraum" },
+    { title: "Budget & Unterkunft", sub: "Wie viel möchtest du ausgeben?" },
+    { title: "Was soll die Reise bieten?", sub: "Wähle alles was passt" },
+    { title: "Fast fertig!", sub: "Dein Reiseprofil auf einen Blick" },
+  ];
+
+  const isLast = step === STEPS.length - 1;
+  const prog = Math.round(((step + 1) / STEPS.length) * 100);
+
+  const renderStep = () => {
+    if (step === 0) return (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {[["Solo", "Nur ich"], ["Zu zweit", "Pärchen"], ["Gruppe", "3-6 Personen"], ["Familie", "Mit Kindern"]].map(([label, desc]) => (
+          <div key={label} onClick={() => upd("traveler", label)} style={{ background: profile.traveler === label ? th.accentLight : th.surfaceAlt, border: `1.5px solid ${profile.traveler === label ? th.accent : th.border}`, borderRadius: 12, padding: 14, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: profile.traveler === label ? th.accent : th.text }}>{label}</div>
+            <div style={{ fontSize: 12, color: th.mute, marginTop: 3 }}>{desc}</div>
+          </div>
+        ))}
+      </div>
+    );
+
+    if (step === 1) return (
+      <div>
+        <div style={{ fontSize: 12, color: th.mute, marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>Abflughafen</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+          {AIRPORTS.map(a => (
+            <div key={a.code} onClick={() => upd("airport", a.code)} style={{ background: profile.airport === a.code ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.airport === a.code ? th.accent : th.border}`, borderRadius: 20, padding: "6px 12px", cursor: "pointer", fontSize: 13, color: profile.airport === a.code ? th.accent : th.sub, WebkitTapHighlightColor: "transparent" }}>
+              {a.city} ({a.code})
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 12, color: th.mute, marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>Dauer</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          {[["2 Tage", "WE"], ["3 Tage", "Langes WE"], ["5 Tage", "Kurzurlaub"], ["7 Tage", "1 Woche"]].map(([val, label]) => (
+            <div key={val} onClick={() => upd("duration", val)} style={{ flex: 1, background: profile.duration === val ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.duration === val ? th.accent : th.border}`, borderRadius: 10, padding: "10px 4px", cursor: "pointer", textAlign: "center", WebkitTapHighlightColor: "transparent" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: profile.duration === val ? th.accent : th.text }}>{label}</div>
+              <div style={{ fontSize: 10, color: th.mute, marginTop: 2 }}>{val}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {[["Hinflug", "dateFrom"], ["Rückflug", "dateTo"]].map(([label, key]) => (
+            <div key={key}>
+              <div style={{ fontSize: 11, color: th.mute, marginBottom: 4 }}>{label}</div>
+              <input type="date" value={profile[key]} onChange={e => upd(key, e.target.value)} style={{ width: "100%", background: th.surfaceAlt, border: `1px solid ${th.border}`, borderRadius: 8, padding: "10px 12px", color: th.text, outline: "none" }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    if (step === 2) return (
+      <div>
+        <div style={{ fontSize: 12, color: th.mute, marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>Budget pro Person</div>
+        <div style={{ fontSize: 32, fontWeight: 700, color: th.accent, marginBottom: 12 }}>{profile.budget} €</div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+          {[200, 400, 700, 1200, 2000].map(b => (
+            <div key={b} onClick={() => upd("budget", b)} style={{ flex: 1, background: profile.budget === b ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.budget === b ? th.accent : th.border}`, borderRadius: 8, padding: "8px 4px", cursor: "pointer", textAlign: "center", fontSize: 11, color: profile.budget === b ? th.accent : th.sub, WebkitTapHighlightColor: "transparent" }}>{b}</div>
+          ))}
+        </div>
+        <div style={{ fontSize: 12, color: th.mute, marginBottom: 10, fontWeight: 600, textTransform: "uppercase" }}>Unterkunftsart</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {HOTEL_CATS.map(c => {
+            const iconMap = { hostel: "bed", hotel3: "hotel", hotel4: "star", apartment: "home", airbnb: "key" };
+            return (
+              <div key={c.id} onClick={() => upd("hotel", c.id)} style={{ display: "flex", alignItems: "center", gap: 12, background: profile.hotel === c.id ? th.accentLight : th.surfaceAlt, border: `1.5px solid ${profile.hotel === c.id ? th.accent : th.border}`, borderRadius: 12, padding: "12px 14px", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+                <Icon name={iconMap[c.id] || "hotel"} size={18} color={profile.hotel === c.id ? th.accent : th.mute} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: profile.hotel === c.id ? th.accent : th.text }}>{c.label}</div>
+                  <div style={{ fontSize: 11, color: th.mute, marginTop: 1 }}>{c.desc}</div>
+                </div>
+                {profile.hotel === c.id && <Icon name="check" size={16} color={th.accent} />}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+
+    if (step === 3) return (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {(VIBES[profile.traveler] || VIBES.Gruppe).map(v => (
+          <div key={v} onClick={() => toggleArr("vibes", v)} style={{ background: profile.vibes.includes(v) ? th.accentLight : th.surfaceAlt, border: `1px solid ${profile.vibes.includes(v) ? th.accent : th.border}`, borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 13, color: profile.vibes.includes(v) ? th.accent : th.sub, fontWeight: profile.vibes.includes(v) ? 600 : 400, WebkitTapHighlightColor: "transparent" }}>{v}</div>
+        ))}
+      </div>
+    );
+
+    const hotelLabel = HOTEL_CATS.find(c => c.id === profile.hotel)?.label || profile.hotel;
+    return (
+      <div style={{ background: th.surfaceAlt, borderRadius: 14, padding: 16, border: `1px solid ${th.border}` }}>
+        {[["Reiseart", profile.traveler], ["Von", profile.airport], ["Zeitraum", `${profile.dateFrom} → ${profile.dateTo}`], ["Budget", `${profile.budget} €`], ["Unterkunft", hotelLabel], ["Urlaubstyp", profile.vibes.slice(0, 3).join(", ") || "-"]].map(([k, v]) => (
+          <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${th.border}` }}>
+            <span style={{ fontSize: 13, color: th.mute }}>{k}</span>
+            <span style={{ fontSize: 13, color: th.text, fontWeight: 500, textAlign: "right", maxWidth: "60%" }}>{v}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: th.bg }}>
+      <div style={{ height: 3, background: th.border, flexShrink: 0, display: "flex" }}>
+        <div style={{ height: 3, background: th.accent, width: `${prog}%`, transition: "width .3s" }} />
+      </div>
+      <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
+        <div style={{ fontSize: 11, color: th.mute, marginBottom: 6, textTransform: "uppercase" }}>Schritt {step + 1} von {STEPS.length}</div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: th.text, marginBottom: 4 }}>{STEPS[step].title}</h2>
+        <p style={{ fontSize: 13, color: th.mute, marginBottom: 16 }}>{STEPS[step].sub}</p>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "0 16px", WebkitOverflowScrolling: "touch" }}>
+        {renderStep()}
+        <div style={{ height: 16 }} />
+      </div>
+      <div style={{ padding: 16, borderTop: `1px solid ${th.border}`, flexShrink: 0, display: "flex", gap: 10, background: th.bg }}>
+        {step > 0 && (
+          <button onClick={() => setStep(s => s - 1)} style={{ width: 48, height: 44, background: th.surfaceAlt, border: `1px solid ${th.border}`, borderRadius: 10, color: th.sub, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon name="arrowLeft" size={18} color={th.sub} />
+          </button>
+        )}
+        <button onClick={() => isLast ? onComplete(profile) : setStep(s => s + 1)} style={{ flex: 1, height: 44, background: th.accent, border: "none", borderRadius: 10, color: th.bg, fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, WebkitTapHighlightColor: "transparent" }}>
+          {isLast ? "Flüge suchen" : "Weiter"}
+          <Icon name={isLast ? "search" : "arrowRight"} size={16} color={th.bg} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── RESULTS ───────────────────────────────────────────────────────────────────
+
+function Results({ profile, savedTrips, onSave, onBook, th }) {
+  const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadMsg, setLoadMsg] = useState("Verbinde mit Duffel API...");
+  const [searchedDests, setSearchedDests] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const messages = [
+        "Verbinde mit Duffel API...",
+        "Echte Flugpreise werden abgerufen...",
+        "Beste Deals werden gefunden...",
+        "Ergebnisse werden sortiert...",
+      ];
+      let msgIdx = 0;
+      const msgInterval = setInterval(() => {
+        if (cancelled) return;
+        msgIdx = (msgIdx + 1) % messages.length;
+        setLoadMsg(messages[msgIdx]);
+      }, 1200);
+
+      try {
+        // Search up to 4 destinations in parallel
+        const dests = SPONTAN_DESTINATIONS.slice(0, 8);
+        const results = await Promise.allSettled(
+          dests.map(async (d) => {
+            const offers = await searchDuffelFlights(
+              profile.airport, d.iata, profile.dateFrom, profile.dateTo
+            );
+            if (!offers || offers.length === 0) return null;
+            const parsed = parseDuffelOffer(offers[0], d);
+            return parsed;
+          })
+        );
+
+        if (cancelled) return;
+
+        const found = results
+          .filter(r => r.status === "fulfilled" && r.value)
+          .map(r => r.value)
+          .filter(t => t.total <= profile.budget * 1.3)
+          .sort((a, b) => a.total - b.total)
+          .slice(0, 5);
+
+        setSearchedDests(dests.map(d => d.iata));
+
+        if (found.length > 0) {
+          // Mark best value
+          found[0].best = "Bestes Preis-Leistungs-Verhältnis";
+          setTrips(found);
+        } else {
+          // Fallback: show all found regardless of budget
+          const allFound = results
+            .filter(r => r.status === "fulfilled" && r.value)
+            .map(r => r.value)
+            .sort((a, b) => a.total - b.total)
+            .slice(0, 5);
+          if (allFound.length > 0) {
+            allFound[0].best = "Günstigster Flug";
+            setTrips(allFound);
+          } else {
+            setTrips([]);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) setTrips([]);
+      } finally {
+        clearInterval(msgInterval);
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (loading) return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", gap: 20 }}>
+      <div style={{ width: 40, height: 40, border: `3px solid ${th.border}`, borderTopColor: th.accent, borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: th.text, marginBottom: 6 }}>{loadMsg}</div>
+        <div style={{ fontSize: 13, color: th.mute }}>Echte Preise von Duffel API</div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: th.text }}>Deine Trips</h2>
+          <p style={{ fontSize: 13, color: th.mute, marginTop: 2 }}>{profile.airport} · {profile.duration} · {profile.budget} €</p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, background: th.accentLight, borderRadius: 20, padding: "4px 10px", border: `1px solid ${th.greenBorder}` }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: th.accent }} />
+          <span style={{ fontSize: 11, color: th.accent, fontWeight: 600 }}>Live</span>
+        </div>
+      </div>
+
+      {trips.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 20px" }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}><Icon name="plane" size={48} color={th.mute} /></div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: th.text, marginBottom: 8 }}>Keine Flüge gefunden</div>
+          <div style={{ fontSize: 13, color: th.mute, marginBottom: 20 }}>Probiere andere Daten oder einen anderen Abflughafen</div>
+          <Btn th={th} onClick={() => window.history.back()}>Neu suchen</Btn>
+        </div>
+      ) : (
+        trips.map((trip, i) => (
+          <TripCard key={trip.id || i} trip={trip} isBest={i === 0} isSaved={savedTrips.some(s => s.id === trip.id || s.dest === trip.dest)} onSave={() => onSave(trip)} onBook={() => onBook(trip)} profile={profile} th={th} />
+        ))
+      )}
+    </div>
+  );
+}
+
+function TripCard({ trip, isBest, isSaved, onSave, onBook, profile, th }) {
+  const [imgError, setImgError] = useState(false);
+  const hotelCat = HOTEL_CATS.find(c => c.id === profile?.hotel);
+  const imgSrc = imgError ? DEST_IMAGES.default : (DEST_IMAGES[trip.iata] || DEST_IMAGES.default);
+  const iconMap = { hostel: "bed", hotel3: "hotel", hotel4: "star", apartment: "home", airbnb: "key" };
+
+  return (
+    <div style={{ background: th.surface, border: `${isBest ? "2px" : "1px"} solid ${isBest ? th.accent : th.border}`, borderRadius: 16, overflow: "hidden", boxShadow: th.shadow }}>
+      <div style={{ position: "relative", height: 160 }}>
+        <img src={imgSrc} onError={() => setImgError(true)} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt={trip.dest} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.7))" }} />
+        {isBest && <div style={{ position: "absolute", top: 10, left: 10, background: th.accent, borderRadius: 20, padding: "3px 10px", fontSize: 11, color: th.bg, fontWeight: 700 }}>Beste Wahl</div>}
+        {trip.temp && trip.temp !== "–" && <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", borderRadius: 20, padding: "3px 8px", fontSize: 11, color: "#fff", fontWeight: 500 }}>{trip.temp}</div>}
+        {hotelCat && (
+          <div style={{ position: "absolute", bottom: 10, left: 10, background: "rgba(0,0,0,0.7)", borderRadius: 20, padding: "3px 10px", fontSize: 11, color: "#fff", display: "flex", alignItems: "center", gap: 5 }}>
+            <Icon name={iconMap[hotelCat.id] || "hotel"} size={12} color="#fff" />
+            <span>{hotelCat.label}</span>
+          </div>
+        )}
+        <button onClick={onSave} style={{ position: "absolute", bottom: 10, right: 10, width: 32, height: 32, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", WebkitTapHighlightColor: "transparent" }}>
+          <Icon name={isSaved ? "heartFill" : "heart"} size={14} color={isSaved ? th.accent : "#fff"} />
+        </button>
+      </div>
+      <div style={{ padding: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: th.text }}>{trip.dest}</div>
+            <div style={{ fontSize: 12, color: th.mute, marginTop: 2 }}>{trip.country} · {trip.airline}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: th.text }}>{formatPrice(trip.total)}</div>
+            <div style={{ fontSize: 11, color: th.mute }}>p.P. gesamt</div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 10 }}>
+          {[
+            ["Abflug", trip.flightTime || "–"],
+            ["Flugdauer", trip.duration || "–"],
+            ["Flug p.P.", formatPrice(trip.flightPrice), true],
+            ["Hotel p.N.", formatPrice(trip.hotelPPN)],
+          ].map(([label, val, green]) => (
+            <div key={label} style={{ background: th.surfaceAlt, borderRadius: 8, padding: "7px 9px", border: `1px solid ${th.border}` }}>
+              <div style={{ fontSize: 10, color: th.mute, marginBottom: 2 }}>{label}</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: green ? th.accent : th.text }}>{val}</div>
+            </div>
+          ))}
+        </div>
+
+        {trip.tip && (
+          <div style={{ background: th.accentLight, borderRadius: 8, padding: "7px 10px", marginBottom: 10, fontSize: 12, color: th.accent, border: `1px solid ${th.greenBorder}`, display: "flex", gap: 6, alignItems: "flex-start" }}>
+            <Icon name="tip" size={14} color={th.accent} />
+            <span>{trip.tip}</span>
+          </div>
+        )}
+
+        <button onClick={onBook} style={{ width: "100%", height: 40, background: th.accent, border: "none", borderRadius: 10, color: th.bg, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, WebkitTapHighlightColor: "transparent" }}>
+          Buchen <Icon name="arrowRight" size={14} color={th.bg} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── BOOKING ───────────────────────────────────────────────────────────────────
+
+function Booking({ trip, profile, onBack, showToast, th }) {
+  const [booked, setBooked] = useState({});
+  const [selProv, setSelProv] = useState({});
+  const nights = parseInt(profile.duration) || 4;
+  const hotelCat = HOTEL_CATS.find(c => c.id === profile.hotel);
+  const iconMap = { hostel: "bed", hotel3: "hotel", hotel4: "star", apartment: "home", airbnb: "key" };
+
+  const getHotelProviders = () => {
+    const price = trip.hotelPPN * nights;
+    if (profile.hotel === "airbnb") return [{ name: "Airbnb", price: Math.round(price * 0.9), badge: "Empfohlen", url: `https://www.airbnb.de/s/${trip.dest}` }, { name: "Booking.com", price, url: `https://www.booking.com/searchresults.de.html?ss=${trip.dest}` }];
+    if (profile.hotel === "hostel") return [{ name: "Hostelworld", price: Math.round(price * 0.7), badge: "Günstigster", url: `https://www.hostelworld.com/search?search=${trip.dest}` }, { name: "Booking.com", price, url: `https://www.booking.com/searchresults.de.html?ss=${trip.dest}` }];
+    return [{ name: "Booking.com", price, badge: "Günstigster", url: `https://www.booking.com/searchresults.de.html?ss=${trip.dest}` }, { name: "Hotels.com", price: price + 18, url: "https://de.hotels.com" }, { name: "Expedia", price: price + 14, url: "https://www.expedia.de" }];
+  };
+
+  const legs = [
+    {
+      id: "flight-out", title: `Flug ${profile.airport} → ${trip.iata}`,
+      detail: `${profile.dateFrom} · ${trip.airline} · ${trip.flightTime || ""}`,
+      price: trip.flightPrice, icon: "plane",
+      providers: [
+        { name: "Skyscanner", price: trip.flightPrice, badge: "Günstigster", url: `https://www.skyscanner.de/transport/fluge/${(profile.airport || "muc").toLowerCase()}/${trip.iata.toLowerCase()}/` },
+        { name: "Kayak", price: trip.flightPrice + 8, url: "https://www.kayak.de" },
+      ],
+      tip: trip.tip,
+    },
+    {
+      id: "hotel", title: `${hotelCat?.label || "Hotel"} – ${nights} Nächte`,
+      detail: trip.hotelName, price: trip.hotelPPN * nights,
+      icon: iconMap[profile.hotel] || "bed", providers: getHotelProviders(),
+    },
+    {
+      id: "activities", title: `Aktivitäten in ${trip.dest}`,
+      detail: "Touren, Ausflüge, Erlebnisse", price: null, icon: "ticket",
+      providers: [
+        { name: "GetYourGuide", price: null, badge: "8% Provision", url: `https://www.getyourguide.de/${trip.dest.toLowerCase()}-l/` },
+        { name: "Viator", price: null, url: `https://www.viator.com/de/${trip.dest}` },
+      ],
+    },
+    {
+      id: "flight-return", title: `Rückflug ${trip.iata} → ${profile.airport}`,
+      detail: `${profile.dateTo} · Rückflug`, price: trip.flightPrice, icon: "plane",
+      providers: [
+        { name: "Skyscanner", price: trip.flightPrice, badge: "Günstigster", url: "https://www.skyscanner.de" },
+        { name: "Kayak", price: trip.flightPrice + 10, url: "https://www.kayak.de" },
+      ],
+    },
+  ];
+
+  const allBooked = legs.filter(l => l.price !== null).every(l => booked[l.id]);
+  const total = legs.filter(l => l.price !== null).reduce((sum, l) => sum + (l.providers[selProv[l.id] || 0]?.price || l.price), 0);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ position: "relative", height: 130, borderRadius: 14, overflow: "hidden", marginBottom: 4 }}>
+        <img src={DEST_IMAGES[trip.iata] || DEST_IMAGES.default} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt={trip.dest} />
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)" }} />
+        <div style={{ position: "absolute", inset: 0, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <button onClick={onBack} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, width: 36, height: 36, cursor: "pointer", color: "#fff", alignSelf: "flex-start", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon name="arrowLeft" size={16} color="#fff" />
+          </button>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>{trip.dest}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 2 }}>{profile.duration} · {hotelCat?.label}</div>
+          </div>
+        </div>
+        <div style={{ position: "absolute", top: 14, right: 14, background: th.accentLight, borderRadius: 8, padding: "4px 10px", fontSize: 11, color: th.accent, fontWeight: 600, border: `1px solid ${th.greenBorder}` }}>
+          {Object.keys(booked).length}/{legs.filter(l => l.price !== null).length} gebucht
+        </div>
+      </div>
+
+      {legs.map((leg, i) => {
+        const isBooked = booked[leg.id];
+        const pi = selProv[leg.id] || 0;
+        return (
+          <div key={leg.id} style={{ background: th.surface, border: `1px solid ${isBooked ? th.greenBorder : th.border}`, borderRadius: 14, padding: 14, opacity: isBooked ? 0.7 : 1, boxShadow: th.shadow }}>
+            <div style={{ marginBottom: 8 }}>
+              {isBooked
+                ? <span style={{ background: th.greenLight, border: `1px solid ${th.greenBorder}`, borderRadius: 20, padding: "2px 10px", fontSize: 11, color: th.green, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="check" size={11} color={th.green} /> Gebucht</span>
+                : <span style={{ background: th.surfaceAlt, border: `1px solid ${th.border}`, borderRadius: 20, padding: "2px 10px", fontSize: 11, color: th.mute }}>Schritt {i + 1}</span>
+              }
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <div style={{ width: 34, height: 34, background: th.accentLight, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name={leg.icon} size={16} color={th.accent} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: th.text }}>{leg.title}</div>
+                <div style={{ fontSize: 11, color: th.mute, marginTop: 1 }}>{leg.detail}</div>
+              </div>
+              {leg.price !== null && <div style={{ fontSize: 15, fontWeight: 700, color: th.text }}>{formatPrice(leg.providers[pi]?.price || leg.price)}</div>}
+            </div>
+            {leg.tip && !isBooked && (
+              <div style={{ background: th.accentLight, borderRadius: 8, padding: "7px 10px", marginBottom: 10, fontSize: 12, color: th.accent, border: `1px solid ${th.greenBorder}`, display: "flex", gap: 6, alignItems: "flex-start" }}>
+                <Icon name="tip" size={13} color={th.accent} /><span>{leg.tip}</span>
+              </div>
+            )}
+            {!isBooked && (
+              <>
+                <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                  {leg.providers.map((p, pi2) => (
+                    <div key={pi2} onClick={() => setSelProv(s => ({ ...s, [leg.id]: pi2 }))} style={{ flex: 1, background: pi === pi2 ? th.accentLight : th.surfaceAlt, border: `1px solid ${pi === pi2 ? th.accent : th.border}`, borderRadius: 8, padding: "7px 6px", cursor: "pointer", textAlign: "center", WebkitTapHighlightColor: "transparent" }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: pi === pi2 ? th.accent : th.sub }}>{p.name}</div>
+                      {p.badge && <div style={{ fontSize: 9, color: th.accent, marginTop: 1 }}>{p.badge}</div>}
+                      <div style={{ fontSize: 12, fontWeight: 700, color: th.text, marginTop: 1 }}>{p.price ? formatPrice(p.price) : "Gratis"}</div>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    window.open(leg.providers[pi]?.url, "_blank");
+                    setTimeout(() => { setBooked(b => ({ ...b, [leg.id]: true })); showToast(`${leg.providers[pi]?.name} geöffnet!`, "success"); }, 500);
+                  }}
+                  style={{ width: "100%", height: 40, background: th.accent, border: "none", borderRadius: 9, color: th.bg, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, WebkitTapHighlightColor: "transparent" }}
+                >
+                  Zu {leg.providers[pi]?.name} {leg.price !== null ? `– ${formatPrice(leg.providers[pi]?.price || leg.price)}` : "– erkunden"}
+                  <Icon name="externalLink" size={13} color={th.bg} />
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })}
+
+      <div style={{ background: th.surface, borderRadius: 14, padding: 14, border: `1px solid ${th.border}` }}>
+        {[["Hin- & Rückflug", formatPrice(trip.flightPrice * 2)], [`${hotelCat?.label || "Hotel"} (${nights} Nächte)`, formatPrice(trip.hotelPPN * nights)]].map(([k, v]) => (
+          <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${th.border}`, fontSize: 13 }}>
+            <span style={{ color: th.mute }}>{k}</span><span style={{ color: th.text, fontWeight: 500 }}>{v}</span>
+          </div>
+        ))}
+        <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, marginTop: 4 }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: th.text }}>Gesamt p.P.</span>
+          <span style={{ fontSize: 20, fontWeight: 700, color: th.accent }}>{formatPrice(total)}</span>
+        </div>
+      </div>
+
+      {allBooked && (
+        <div style={{ background: th.greenLight, border: `1px solid ${th.greenBorder}`, borderRadius: 14, padding: 24, textAlign: "center" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}><Icon name="check" size={36} color={th.green} /></div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: th.green, marginBottom: 4 }}>Alle Abschnitte gebucht!</div>
+          <div style={{ fontSize: 13, color: th.green, opacity: 0.8 }}>Gute Reise nach {trip.dest}!</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SAVED ─────────────────────────────────────────────────────────────────────
+
+function Saved({ savedTrips, onRemove, onBook, th }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: th.text }}>Gespeichert</h2>
+      {savedTrips.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px 20px" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><Icon name="heart" size={48} color={th.border} /></div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: th.sub }}>Noch keine gespeicherten Trips</div>
+          <div style={{ fontSize: 13, color: th.mute, marginTop: 6 }}>Speichere Reisen vom Ergebnisscreen</div>
+        </div>
+      ) : (
+        savedTrips.map(trip => (
+          <div key={trip.id || trip.dest} style={{ background: th.surface, border: `1px solid ${th.border}`, borderRadius: 14, overflow: "hidden", boxShadow: th.shadow }}>
+            <div style={{ position: "relative", height: 100 }}>
+              <img src={DEST_IMAGES[trip.iata] || DEST_IMAGES.default} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt={trip.dest} />
+              <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", padding: 12, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>{trip.dest}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: th.accent, background: "rgba(0,0,0,0.5)", borderRadius: 8, padding: "2px 8px" }}>{formatPrice(trip.total)}</div>
+              </div>
+            </div>
+            <div style={{ padding: "10px 14px" }}>
+              <div style={{ fontSize: 12, color: th.mute, marginBottom: 10 }}>{trip.country} · {trip.airline} ab {formatPrice(trip.flightPrice)}</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => onBook(trip)} style={{ flex: 1, height: 36, background: th.accent, border: "none", borderRadius: 8, color: th.bg, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, WebkitTapHighlightColor: "transparent" }}>
+                  Buchen <Icon name="arrowRight" size={12} color={th.bg} />
+                </button>
+                <button onClick={() => onRemove(trip.id || trip.dest)} style={{ width: 36, height: 36, background: th.surfaceAlt, border: `1px solid ${th.border}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name="trash" size={14} color={th.mute} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ── ASSISTANT ─────────────────────────────────────────────────────────────────
+
+function Assistent({ profile, th }) {
+  const INIT = { role: "assistant", text: "Hallo! Ich bin dein KI-Reiseassistent. Frag mich alles über deine Reise – Tipps, Sehenswürdigkeiten, Budget-Optimierung, Packlisten und mehr!" };
+  const [msgs, setMsgs] = useState([INIT]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef();
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, loading]);
+
+  const SUGG = ["Beste Reisetipps Barcelona", "Packliste Strandurlaub", "Günstig essen Lissabon", "Was tun bei Flugverspätung?"];
+
+  const send = async (text) => {
+    const t = (text || input).trim();
+    if (!t || loading) return;
+    setInput("");
+    const newMsgs = [...msgs, { role: "user", text: t }];
+    setMsgs(newMsgs);
+    setLoading(true);
+    try {
+      const apiMsgs = newMsgs.map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.text }));
+      while (apiMsgs.length && apiMsgs[0].role === "assistant") apiMsgs.shift();
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514", max_tokens: 1000,
+          system: `Du bist ein freundlicher Reiseassistent für TripMatch. Reiseprofil: ${JSON.stringify(profile)}. Kurze Antworten auf Deutsch, max 150 Wörter.`,
+          messages: apiMsgs,
+        }),
+      });
+      const data = await res.json();
+      const reply = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim() || "Entschuldigung, keine Antwort möglich.";
+      setMsgs([...newMsgs, { role: "assistant", text: reply }]);
+    } catch {
+      setMsgs([...newMsgs, { role: "assistant", text: "Verbindungsfehler. Bitte versuche es nochmal." }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100dvh - 120px)" }}>
+      <div style={{ padding: "0 0 14px", flexShrink: 0 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: th.text }}>KI-Assistent</h2>
+        <p style={{ fontSize: 13, color: th.mute, marginTop: 2 }}>Frag mich alles über deine Reise</p>
+      </div>
+      {msgs.length === 1 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14, flexShrink: 0 }}>
+          {SUGG.map(s => <div key={s} onClick={() => send(s)} style={{ background: th.accentLight, border: `1px solid ${th.greenBorder}`, borderRadius: 20, padding: "6px 12px", cursor: "pointer", fontSize: 12, color: th.accent, WebkitTapHighlightColor: "transparent" }}>{s}</div>)}
+        </div>
+      )}
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14, WebkitOverflowScrolling: "touch" }}>
+        {msgs.map((m, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+            <div style={{ maxWidth: "82%", padding: "10px 14px", borderRadius: m.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: m.role === "user" ? th.accent : th.surface, color: m.role === "user" ? th.bg : th.text, fontSize: 14, lineHeight: 1.5, border: m.role === "user" ? "none" : `1px solid ${th.border}`, whiteSpace: "pre-wrap" }}>{m.text}</div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{ display: "flex", gap: 6, padding: "10px 14px", background: th.surface, borderRadius: "14px 14px 14px 4px", alignSelf: "flex-start", border: `1px solid ${th.border}` }}>
+            {[0, 1, 2].map(i => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: th.accent, animation: `bounce${i} .8s ease-in-out infinite`, animationDelay: `${i * 0.15}s` }} />)}
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+      <div style={{ display: "flex", gap: 8, flexShrink: 0, borderTop: `1px solid ${th.border}`, paddingTop: 14 }}>
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+          placeholder="Frag mich etwas..."
+          style={{ flex: 1, background: th.surfaceAlt, border: `1px solid ${th.border}`, borderRadius: 10, padding: "10px 14px", color: th.text, outline: "none" }}
+        />
+        <button onClick={() => send()} disabled={!input.trim() || loading} style={{ width: 44, height: 44, background: th.accent, border: "none", borderRadius: 10, cursor: !input.trim() || loading ? "not-allowed" : "pointer", opacity: !input.trim() || loading ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Icon name="arrowUp" size={18} color={th.bg} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── BOTTOM NAV ────────────────────────────────────────────────────────────────
+
+function BottomNav({ active, setActive, th }) {
+  const tabs = [
+    { id: "home", icon: "home", label: "Home" },
+    { id: "results", icon: "search", label: "Suchen" },
+    { id: "saved", icon: "heart", label: "Gespeichert" },
+    { id: "assistent", icon: "bot", label: "KI" },
+  ];
+  return (
+    <div style={{ display: "flex", background: th.surface, borderTop: `1px solid ${th.border}`, padding: "8px 0 12px", flexShrink: 0 }}>
+      {tabs.map(t => (
+        <div key={t.id} onClick={() => setActive(t.id)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", opacity: active === t.id ? 1 : 0.35, WebkitTapHighlightColor: "transparent" }}>
+          <Icon name={active === t.id && t.id === "saved" ? "heartFill" : t.icon} size={20} color={active === t.id ? th.accent : th.sub} />
+          <span style={{ fontSize: 9, color: active === t.id ? th.accent : th.mute, fontWeight: active === t.id ? 600 : 400 }}>{t.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── ROOT ──────────────────────────────────────────────────────────────────────
+
+function TripFind() {
+  const [themeKey, setThemeKey] = useState("dark");
+  const [active, setActive] = useState("home");
+  const [profile, setProfile] = useState({
+    traveler: "Solo", airport: "MUC", duration: "4 Tage",
+    dateFrom: todayPlus(7), dateTo: todayPlus(11),
+    budget: 500, hotel: "hotel3", vibes: [], temp: 0, activity: "Moderat", excl: "",
+  });
+  const [savedTrips, setSavedTrips] = useState([]);
+  const [bookingTrip, setBookingTrip] = useState(null);
+  const [toast, setToast] = useState(null);
+  const th = THEMES[themeKey];
+
+  const showToast = (msg, type = "success") => setToast({ msg, type });
+
+  function onSave(trip) {
+    if (savedTrips.some(s => s.id === trip.id || s.dest === trip.dest)) {
+      setSavedTrips(s => s.filter(x => x.id !== trip.id && x.dest !== trip.dest));
+      showToast("Reise entfernt", "info");
+    } else {
+      setSavedTrips(s => [...s, trip]);
+      showToast("Reise gespeichert!", "success");
+    }
+  }
+
+  function onBook(trip) { setBookingTrip(trip); setActive("booking"); }
+
+  const pages = {
+    home: <Home setActive={setActive} th={th} />,
+    onboarding: <Onboarding onComplete={p => { setProfile(p); setActive("results"); }} th={th} />,
+    results: <Results profile={profile} savedTrips={savedTrips} onSave={onSave} onBook={onBook} th={th} />,
+    booking: bookingTrip ? <Booking trip={bookingTrip} profile={profile} onBack={() => setActive("results")} showToast={showToast} th={th} /> : null,
+    saved: <Saved savedTrips={savedTrips} onRemove={id => setSavedTrips(s => s.filter(x => x.id !== id && x.dest !== id))} onBook={onBook} th={th} />,
+    assistent: <Assistent profile={profile} th={th} />,
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100dvh", background: th.bg, fontFamily: "'DM Sans',system-ui,sans-serif", overflow: "hidden", maxWidth: 430, margin: "0 auto" }}>
+      {active !== "onboarding" && (
+        <header style={{ height: 52, background: th.surface, borderBottom: `1px solid ${th.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 18px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: th.text }}>TripMatch</span>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: th.accent }} />
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {active !== "home" && (
+              <button onClick={() => setActive("onboarding")} style={{ background: th.surfaceAlt, border: `1px solid ${th.border}`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: th.sub, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                <Icon name="search" size={12} color={th.sub} /> Neue Suche
+              </button>
+            )}
+            <button onClick={() => setThemeKey(k => k === "dark" ? "light" : "dark")} style={{ background: th.surfaceAlt, border: `1px solid ${th.border}`, borderRadius: 8, width: 34, height: 34, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Icon name={themeKey === "dark" ? "sun" : "moon"} size={16} color={th.sub} />
+            </button>
+          </div>
+        </header>
+      )}
+
+      <main style={{ flex: 1, overflowY: "auto", padding: active === "onboarding" || active === "home" ? "0" : "16px", background: th.bg, color: th.text, WebkitOverflowScrolling: "touch" }}>
+        {pages[active] || <div style={{ padding: 40, textAlign: "center", color: th.mute }}>Seite nicht gefunden</div>}
+      </main>
+
+      {active !== "onboarding" && <BottomNav active={active} setActive={setActive} th={th} />}
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} th={th} />}
+    </div>
+  );
+}
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<TripFind />);
+  </script>
+</body>
+</html>
