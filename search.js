@@ -91,3 +91,4 @@ Antworte NUR mit einem JSON-Array ohne Backticks oder Markdown:
     return res.status(500).json({ error: "Search failed", detail: err.message });
   }
 }
+ 
