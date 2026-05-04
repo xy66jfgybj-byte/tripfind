@@ -148,56 +148,14 @@ function buildBookingUrl(dest, checkIn, checkOut) {
 }
 
 async function searchTripsWithAI(profile) {
-  const hotelLabel = HOTEL_CATS.find(c => c.id === profile.hotel)?.label || profile.hotel;
-  const styleMap = { budget: "Budget-Reise", comfort: "Komfort", luxury: "Luxus", adventure: "Abenteuer", culture: "Kultur" };
-
-  const prompt = `Du bist ein Reiseexperte. Finde 5 perfekte Reiseziele für dieses Profil:
-- Reiseart: ${profile.traveler}
-- Abflug: ${profile.airport} (Deutschland/DACH)
-- Zeitraum: ${profile.dateFrom} bis ${profile.dateTo} (${profile.duration})
-- Budget gesamt p.P.: ${profile.budget}€ (Flug + Hotel)
-- Unterkunft: ${hotelLabel}
-- Reisestil: ${styleMap[profile.style] || "Komfort"}
-- Klima-Wunsch: ${profile.climate || "Egal"}
-- Aktivitäten: ${(profile.activity || []).join(", ") || "Allgemein"}
-- Region: ${profile.region || "Weltweit"}
-- Ausschließen: ${profile.excl || "Nichts"}
-
-Antworte NUR mit einem JSON-Array, keine Backticks, kein Markdown:
-[{
-  "id": "t1",
-  "dest": "Barcelona",
-  "country": "Spanien",
-  "iata": "BCN",
-  "tagline": "Strand, Gaudi & unvergessliche Tapas",
-  "flightPrice": 120,
-  "flightTime": "06:40",
-  "airline": "Vueling",
-  "duration": "2h 10min",
-  "hotelName": "Hotel Arts Barcelona",
-  "hotelPPN": 95,
-  "total": 310,
-  "tip": "Frühbucher-Tipp: 2 Wochen vorher oft 30% günstiger",
-  "best": "Beste Wahl",
-  "highlights": ["Sagrada Familia", "Barceloneta Strand", "El Born"],
-  "whyPerfect": "Perfekt für euch weil..."
-}]
-
-Preise sollen realistisch sein für ${profile.dateFrom}. Budget strikt einhalten: max ${profile.budget}€ total.`;
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2000,
-      messages: [{ role: "user", content: prompt }]
-    })
+    body: JSON.stringify(profile)
   });
   const data = await res.json();
-  const text = (data.content?.[0]?.text || "").trim();
-  const clean = text.replace(/```json|```/g, "").trim();
-  return JSON.parse(clean);
+  if (data.error) throw new Error(data.error);
+  return data.trips;
 }
 
 function parseDuration(iso) {
