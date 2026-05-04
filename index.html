@@ -551,7 +551,7 @@ function Onboarding({ onComplete, onBack, th }) {
         <div style={{ fontSize: 12, color: th.mute, marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>Budget pro Person (inkl. Flug & Hotel)</div>
         <div style={{ fontSize: 36, fontWeight: 700, color: th.accent, marginBottom: 4 }}>{profile.budget} €</div>
         <input type="range" min="100" max="5000" step="50" value={profile.budget}
-          onInput={e => upd("budget", parseInt(e.target.value))}
+          onChange={e => upd("budget", parseInt(e.target.value))}
           style={{ width: "100%", accentColor: th.accent, marginBottom: 6 }} />
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: th.mute, marginBottom: 20 }}>
           <span>100 €</span><span>5.000 €</span>
@@ -750,7 +750,7 @@ function Results({ profile, savedTrips, onSave, onBook, onHome, th }) {
         </div>
         <button onClick={onHome} style={{ background: th.surfaceAlt, border: `1px solid ${th.border}`, borderRadius: 8, padding: "6px 10px", fontSize: 11, color: th.sub, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, WebkitTapHighlightColor: "transparent", flexShrink: 0 }}>
           <Icon name="home" size={12} color={th.sub} /> Home
-        </div>
+        </button>
         <div style={{ display: "flex", alignItems: "center", gap: 5, background: th.accentLight, borderRadius: 20, padding: "4px 10px", border: `1px solid ${th.greenBorder}` }}>
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: th.accent }} />
           <span style={{ fontSize: 11, color: th.accent, fontWeight: 600 }}>Live</span>
