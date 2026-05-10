@@ -16,16 +16,12 @@
     input,textarea,select{font-size:16px!important;font-family:inherit}
     button{-webkit-tap-highlight-color:transparent;font-family:inherit;cursor:pointer}
     @keyframes spin{to{transform:rotate(360deg)}}
-    @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
     @keyframes bounce0{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
     @keyframes bounce1{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
     @keyframes bounce2{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
-    @keyframes swipeLeft{to{transform:translateX(-120%) rotate(-20deg);opacity:0}}
-    @keyframes swipeRight{to{transform:translateX(120%) rotate(20deg);opacity:0}}
-    .fade-up{animation:fadeUp .35s ease forwards}
-    .fade-in{animation:fadeIn .3s ease forwards}
+    .fade-up{animation:fadeUp .3s ease forwards}
   </style>
 </head>
 <body>
@@ -34,25 +30,34 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel">
-const { useState, useRef, useEffect, useCallback } = React;
+const { useState, useEffect, useRef } = React;
 
-// ── THEME ────────────────────────────────────────────────────────────────────
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const SUPABASE_URL = "YOUR_SUPABASE_URL"; // wird später ersetzt
+const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
+
 const TH = {
-  bg:"#080808", surface:"#111", surfaceAlt:"#161616", surfaceHover:"#1a1a1a",
+  bg:"#080808", surface:"#111", surfaceAlt:"#161616",
   border:"#222", text:"#fff", sub:"#888", mute:"#444",
   accent:"#00E5A0", accentLight:"#0d1f1a", accentBorder:"#00E5A040",
-  amber:"#FBB040", amberLight:"#1C1100",
+  amber:"#FBB040", amberLight:"#1C1100", amberBorder:"#FBB04033",
   red:"#F87171", redLight:"#1C0808",
   blue:"#60A5FA", blueLight:"#0d1929",
   shadow:"0 2px 12px rgba(0,0,0,0.5)", shadowLg:"0 8px 32px rgba(0,0,0,0.7)",
   grad:"linear-gradient(135deg,#00E5A0,#00B8D4)",
 };
 
-// ── DATA ─────────────────────────────────────────────────────────────────────
+// ── AIRPORTS & DATA ───────────────────────────────────────────────────────────
 const AIRPORTS = [
-  {code:"MUC",city:"München"},{code:"FRA",city:"Frankfurt"},{code:"BER",city:"Berlin"},
-  {code:"DUS",city:"Düsseldorf"},{code:"HAM",city:"Hamburg"},{code:"STR",city:"Stuttgart"},
-  {code:"CGN",city:"Köln"},{code:"VIE",city:"Wien"},{code:"ZRH",city:"Zürich"},
+  {code:"MUC",city:"München",lat:48.35,lon:11.78},
+  {code:"FRA",city:"Frankfurt",lat:50.03,lon:8.57},
+  {code:"BER",city:"Berlin",lat:52.36,lon:13.50},
+  {code:"DUS",city:"Düsseldorf",lat:51.28,lon:6.77},
+  {code:"HAM",city:"Hamburg",lat:53.63,lon:9.99},
+  {code:"STR",city:"Stuttgart",lat:48.69,lon:9.22},
+  {code:"CGN",city:"Köln",lat:50.86,lon:7.14},
+  {code:"VIE",city:"Wien",lat:48.11,lon:16.57},
+  {code:"ZRH",city:"Zürich",lat:47.46,lon:8.55},
 ];
 
 const DEST_IMAGES = {
@@ -68,10 +73,7 @@ const DEST_IMAGES = {
   PRG:"https://images.unsplash.com/photo-1541849546-216549ae216d?w=800&q=85",
   VIE:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=85",
   ZRH:"https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&q=85",
-  IST:"https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=800&q=85",
-  DXB:"https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=85",
-  BKK:"https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&q=85",
-  NYC:"https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=800&q=85",
+  INN:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=85",
   default:"https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=85",
 };
 
@@ -82,127 +84,146 @@ const DEST_COORDS = {
   PRG:{lat:50.08,lon:14.44}, VIE:{lat:48.21,lon:16.37}, ZRH:{lat:47.38,lon:8.54},
 };
 
-const SWIPE_DESTINATIONS = [
-  {iata:"BCN",dest:"Barcelona",country:"Spanien",tags:["Strand","Kultur","Nightlife"],temp:"26°"},
-  {iata:"LIS",dest:"Lissabon",country:"Portugal",tags:["Kultur","Essen","Altstadt"],temp:"22°"},
-  {iata:"PMI",dest:"Mallorca",country:"Spanien",tags:["Strand","Natur","Entspannung"],temp:"28°"},
-  {iata:"ATH",dest:"Athen",country:"Griechenland",tags:["Geschichte","Strand","Kulinarik"],temp:"30°"},
-  {iata:"AMS",dest:"Amsterdam",country:"Niederlande",tags:["Kultur","Fahrrad","Nightlife"],temp:"18°"},
-  {iata:"CDG",dest:"Paris",country:"Frankreich",tags:["Romantik","Kultur","Essen"],temp:"20°"},
-  {iata:"PRG",dest:"Prag",country:"Tschechien",tags:["Altstadt","Bier","Kultur"],temp:"19°"},
-  {iata:"DUB",dest:"Dublin",country:"Irland",tags:["Pub","Natur","Kultur"],temp:"16°"},
-  {iata:"FCO",dest:"Rom",country:"Italien",tags:["Geschichte","Kulinarik","Kultur"],temp:"25°"},
-  {iata:"MAD",dest:"Madrid",country:"Spanien",tags:["Kunst","Essen","Nightlife"],temp:"27°"},
-];
-
-const HIKING_DESTINATIONS = [
-  {iata:"INN",dest:"Innsbruck",country:"Österreich",region:"Alpen",tags:["Wandern","Berge"],difficulty:"Mittel"},
-  {iata:"ZRH",dest:"Schweiz",country:"Schweiz",region:"Alpen",tags:["Wandern","Berge","Seen"],difficulty:"Mittel-Schwer"},
-  {iata:"PRG",dest:"Böhmen",country:"Tschechien",region:"Böhmische Schweiz",tags:["Wandern","Natur"],difficulty:"Leicht"},
-  {iata:"BER",dest:"Berchtesgaden",country:"Deutschland",region:"Bayern",tags:["Wandern","Berge","Seen"],difficulty:"Mittel"},
-];
-
 const HOTEL_CATS = [
-  {id:"hostel",label:"Hostel",desc:"Günstig & sozial",icon:"🏠"},
-  {id:"hotel3",label:"3★ Hotel",desc:"Komfort & Preis",icon:"🏨"},
-  {id:"hotel4",label:"4-5★ Hotel",desc:"Premium & Luxus",icon:"🏰"},
-  {id:"apartment",label:"Ferienwohnung",desc:"Wie zu Hause",icon:"🏡"},
-  {id:"airbnb",label:"Airbnb",desc:"Einzigartig",icon:"🌟"},
+  {id:"hostel",label:"Hostel",desc:"Günstig & sozial",emoji:"🏠"},
+  {id:"hotel3",label:"3★ Hotel",desc:"Komfort & Preis",emoji:"🏨"},
+  {id:"hotel4",label:"4-5★ Hotel",desc:"Premium & Luxus",emoji:"🏰"},
+  {id:"apartment",label:"Ferienwohnung",desc:"Wie zu Hause",emoji:"🏡"},
+  {id:"airbnb",label:"Airbnb",desc:"Einzigartig",emoji:"✨"},
 ];
 
-// ── HELPERS ──────────────────────────────────────────────────────────────────
+// Preisschätzungen nach Kategorie
+const PRICE_ESTIMATES = {
+  beach_europe: { flight: [80,200], hotel_night: [60,180], total_7d: [500,1400] },
+  beach_caribbean: { flight: [400,900], hotel_night: [100,300], total_7d: [1200,3500] },
+  mountain_alps: { flight: [50,150], hotel_night: [70,200], total_7d: [400,1200] },
+  city_europe: { flight: [60,180], hotel_night: [80,220], total_7d: [500,1500] },
+  city_far: { flight: [300,800], hotel_night: [60,200], total_7d: [900,3000] },
+  hiking: { flight: [50,150], hotel_night: [50,150], total_7d: [350,1000] },
+  party: { flight: [70,180], hotel_night: [40,120], total_7d: [400,1200] },
+};
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
 function todayPlus(d){const dt=new Date();dt.setDate(dt.getDate()+d);return dt.toISOString().split("T")[0];}
 function formatPrice(n){return new Intl.NumberFormat("de-DE",{maximumFractionDigits:0}).format(n)+" €";}
-function formatTime(iso){if(!iso)return"--:--";return new Date(iso).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"});}
-
-function buildSkyscannerUrl(origin,dest,dep,ret){
+function buildSkyscannerUrl(o,d,dep,ret){
   const d1=dep.replace(/-/g,"").slice(2),d2=ret.replace(/-/g,"").slice(2);
-  return `https://www.skyscanner.de/transport/fluge/${origin.toLowerCase()}/${dest.toLowerCase()}/${d1}/${d2}/?adults=1`;
+  return `https://www.skyscanner.de/transport/fluge/${o.toLowerCase()}/${d.toLowerCase()}/${d1}/${d2}/`;
 }
-function buildBookingUrl(dest,checkIn,checkOut){
-  return `https://www.booking.com/searchresults.de.html?ss=${encodeURIComponent(dest)}&checkin=${checkIn}&checkout=${checkOut}`;
+function buildBookingUrl(dest,ci,co){
+  return `https://www.booking.com/searchresults.de.html?ss=${encodeURIComponent(dest)}&checkin=${ci}&checkout=${co}`;
 }
 function buildGetYourGuideUrl(dest){
   return `https://www.getyourguide.de/${dest.toLowerCase().replace(/ /g,"-")}-l/`;
 }
 
-// ── WEATHER API ───────────────────────────────────────────────────────────────
-async function fetchWeather(iata,dateStr){
-  const coords=DEST_COORDS[iata];
-  if(!coords)return null;
-  try{
-    const url=`https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto&start_date=${dateStr}&end_date=${dateStr}`;
-    const res=await fetch(url);
-    const data=await res.json();
-    const max=Math.round(data.daily?.temperature_2m_max?.[0]||0);
-    const min=Math.round(data.daily?.temperature_2m_min?.[0]||0);
-    const code=data.daily?.weathercode?.[0]||0;
-    const emoji=code===0?"☀️":code<=3?"🌤":code<=48?"🌥":code<=67?"🌧":code<=77?"❄️":"⛈";
-    return{max,min,emoji};
-  }catch{return null;}
+// Driving distance estimate (rough km based on lat/lon)
+function estimateDriveHours(airportCode, destLat, destLon) {
+  const ap = AIRPORTS.find(a => a.code === airportCode);
+  if (!ap) return null;
+  const dlat = ap.lat - destLat, dlon = ap.lon - destLon;
+  const km = Math.sqrt(dlat*dlat + dlon*dlon) * 111;
+  return Math.round(km / 90 * 10) / 10; // ~90km/h avg
+}
+
+// ── WEATHER ───────────────────────────────────────────────────────────────────
+async function fetchWeather(iata, dateStr) {
+  const c = DEST_COORDS[iata];
+  if (!c) return null;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto&start_date=${dateStr}&end_date=${dateStr}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const max = Math.round(data.daily?.temperature_2m_max?.[0]||0);
+    const min = Math.round(data.daily?.temperature_2m_min?.[0]||0);
+    const code = data.daily?.weathercode?.[0]||0;
+    const emoji = code===0?"☀️":code<=3?"🌤":code<=48?"🌥":code<=67?"🌧":"❄️";
+    return {max,min,emoji};
+  } catch { return null; }
 }
 
 // ── AI SEARCH ─────────────────────────────────────────────────────────────────
-async function searchTripsWithAI(profile){
-  const res=await fetch("/api/search",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(profile)
+async function searchTripsWithAI(profile) {
+  const res = await fetch("/api/search", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(profile)
   });
-  const data=await res.json();
-  if(data.error)throw new Error(data.error);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
   return data.trips;
 }
 
-// ── USER PREFERENCES (AI Learning) ───────────────────────────────────────────
-function loadPrefs(){try{return JSON.parse(localStorage.getItem("tf_prefs")||"{}")}catch{return{}}}
-function savePrefs(p){try{localStorage.setItem("tf_prefs",JSON.stringify(p))}catch{}}
-function learnFromLike(dest,tags){
-  const p=loadPrefs();
-  p.liked=p.liked||[];
-  p.likedTags=p.likedTags||{};
-  if(!p.liked.includes(dest.iata))p.liked.push(dest.iata);
-  (tags||[]).forEach(t=>{p.likedTags[t]=(p.likedTags[t]||0)+1;});
-  savePrefs(p);
+// ── VOTING (Supabase) ─────────────────────────────────────────────────────────
+async function voteForTrip(dest, iata) {
+  if (SUPABASE_URL === "YOUR_SUPABASE_URL") return; // not configured yet
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/votes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Prefer": "resolution=merge-duplicates"
+      },
+      body: JSON.stringify({dest, iata, votes: 1, week: getWeekKey()})
+    });
+  } catch {}
 }
-function learnFromDislike(dest){
-  const p=loadPrefs();
-  p.disliked=p.disliked||[];
-  if(!p.disliked.includes(dest.iata))p.disliked.push(dest.iata);
-  savePrefs(p);
+
+async function fetchTopVotes() {
+  if (SUPABASE_URL === "YOUR_SUPABASE_URL") {
+    return [
+      {dest:"Barcelona",iata:"BCN",votes:847,country:"Spanien"},
+      {dest:"Lissabon",iata:"LIS",votes:623,country:"Portugal"},
+      {dest:"Mallorca",iata:"PMI",votes:589,country:"Spanien"},
+      {dest:"Amsterdam",iata:"AMS",votes:412,country:"Niederlande"},
+      {dest:"Athen",iata:"ATH",votes:398,country:"Griechenland"},
+    ];
+  }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/votes?week=eq.${getWeekKey()}&order=votes.desc&limit=5`, {
+      headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`}
+    });
+    return await res.json();
+  } catch { return []; }
+}
+
+function getWeekKey() {
+  const d = new Date();
+  const week = Math.ceil(d.getDate() / 7);
+  return `${d.getFullYear()}-${d.getMonth()+1}-W${week}`;
 }
 
 // ── ICONS ─────────────────────────────────────────────────────────────────────
-function Icon({name,size=16,color="currentColor"}){
-  const icons={
+function Icon({name,size=16,color="currentColor"}) {
+  const icons = {
     plane:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 19 2c-2-2-4-2-5.5-.5L10 5 1.8 6.2a1 1 0 0 0-.5 1.7l2 2 3 .6L4 15l-1 1 3 2 2-1 .6 3 2 2a1 1 0 0 0 1.7-.5z"/></svg>,
+    car:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>,
     home:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
     search:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
     heart:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>,
     heartFill:<svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>,
-    map:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>,
-    mountain:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3l4 8 5-5 5 15H2L8 3z"/></svg>,
     arrowRight:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
     arrowLeft:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
     check:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-    x:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
     star:<svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
-    sun:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+    shuffle:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>,
+    trophy:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="8 21 12 21 16 21"/><line x1="12" y1="17" x2="12" y2="21"/><path d="M7 4H4a2 2 0 0 0-2 2v2a4 4 0 0 0 4 4"/><path d="M17 4h3a2 2 0 0 1 2 2v2a4 4 0 0 1-4 4"/><path d="M12 17a5 5 0 0 0 5-5V4H7v8a5 5 0 0 0 5 5z"/></svg>,
+    map:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>,
+    mountain:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3l4 8 5-5 5 15H2L8 3z"/></svg>,
     trash:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>,
-    tip:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
-    calendar:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
     externalLink:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
-    route:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>,
-    bot:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>,
+    tip:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
   };
   return icons[name]||null;
 }
 
-// ── TOAST ────────────────────────────────────────────────────────────────────
-function Toast({msg,type,onDone}){
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function Toast({msg,type,onDone}) {
   useEffect(()=>{const t=setTimeout(onDone,3000);return()=>clearTimeout(t);},[]);
-  const bg={success:TH.accentLight,error:TH.redLight,info:TH.blueLight,warning:TH.amberLight}[type]||TH.accentLight;
   const c={success:TH.accent,error:TH.red,info:TH.blue,warning:TH.amber}[type]||TH.accent;
+  const bg={success:TH.accentLight,error:TH.redLight,info:TH.blueLight,warning:TH.amberLight}[type]||TH.accentLight;
   return(
     <div style={{position:"fixed",bottom:80,left:16,right:16,background:bg,border:`1px solid ${c}44`,borderRadius:14,padding:"14px 18px",color:c,fontSize:14,fontWeight:600,zIndex:400,boxShadow:TH.shadowLg,textAlign:"center"}}>
       {msg}
@@ -210,257 +231,444 @@ function Toast({msg,type,onDone}){
   );
 }
 
-// ── SWIPE CARDS ───────────────────────────────────────────────────────────────
-function SwipeCards({onLike,onDislike,onDone}){
-  const [cards,setCards]=useState(SWIPE_DESTINATIONS);
-  const [current,setCurrent]=useState(0);
-  const [anim,setAnim]=useState(null);
-  const prefs=loadPrefs();
-
-  const handleSwipe=(liked)=>{
-    const dest=cards[current];
-    setAnim(liked?"right":"left");
-    setTimeout(()=>{
-      if(liked){onLike(dest);learnFromLike(dest,dest.tags);}
-      else{onDislike(dest);learnFromDislike(dest);}
-      setAnim(null);
-      if(current>=cards.length-1){onDone();}
-      else{setCurrent(c=>c+1);}
-    },350);
-  };
-
-  if(current>=cards.length)return null;
-  const dest=cards[current];
-  const img=DEST_IMAGES[dest.iata]||DEST_IMAGES.default;
+// ── PRICE ESTIMATE BADGE ──────────────────────────────────────────────────────
+function PriceEstimate({category, budget, nights=4}) {
+  const est = PRICE_ESTIMATES[category];
+  if (!est) return null;
+  const flightMid = Math.round((est.flight[0]+est.flight[1])/2);
+  const hotelMid = Math.round((est.hotel_night[0]+est.hotel_night[1])/2);
+  const totalEst = flightMid + hotelMid * nights;
+  const fits = budget >= totalEst * 0.8;
 
   return(
-    <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontSize:13,color:TH.mute,textAlign:"center",marginBottom:12}}>
-        {current+1} / {cards.length} · Swipen oder tippen
+    <div style={{background:fits?TH.accentLight:TH.amberLight,border:`1px solid ${fits?TH.accentBorder:TH.amberBorder}`,borderRadius:12,padding:"10px 14px",marginTop:10}}>
+      <div style={{fontSize:12,fontWeight:700,color:fits?TH.accent:TH.amber,marginBottom:4}}>
+        {fits?"✅ Passt in dein Budget":"💡 Ungefähre Preise"}
       </div>
-      <div style={{
-        position:"relative",borderRadius:20,overflow:"hidden",height:380,
-        boxShadow:TH.shadowLg,
-        animation:anim?`swipe${anim==="right"?"Right":"Left"} .35s ease forwards`:"none",
-        cursor:"grab"
-      }}>
-        <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={dest.dest}/>
-        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.9))"}}/>
-        <div style={{position:"absolute",top:12,right:12,background:"rgba(0,0,0,0.6)",borderRadius:20,padding:"4px 10px",fontSize:13,color:"#fff",fontWeight:600}}>
-          {dest.temp}
-        </div>
-        <div style={{position:"absolute",bottom:0,left:0,right:0,padding:20}}>
-          <div style={{fontSize:24,fontWeight:800,color:"#fff",marginBottom:4}}>{dest.dest}</div>
-          <div style={{fontSize:14,color:"rgba(255,255,255,0.7)",marginBottom:10}}>{dest.country}</div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {dest.tags.map(t=>(
-              <span key={t} style={{background:"rgba(255,255,255,0.2)",borderRadius:20,padding:"4px 10px",fontSize:12,color:"#fff"}}>{t}</span>
-            ))}
-          </div>
-        </div>
+      <div style={{display:"flex",gap:12,fontSize:12,color:fits?TH.accent:TH.amber}}>
+        <span>✈️ Flug: {formatPrice(est.flight[0])}–{formatPrice(est.flight[1])}</span>
+        <span>🏨 Hotel/N: {formatPrice(est.hotel_night[0])}–{formatPrice(est.hotel_night[1])}</span>
       </div>
-      <div style={{display:"flex",gap:16,marginTop:16}}>
-        <button onClick={()=>handleSwipe(false)} style={{flex:1,height:56,background:TH.redLight,border:`1px solid ${TH.red}44`,borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontSize:15,fontWeight:700,color:TH.red}}>
-          <Icon name="x" size={20} color={TH.red}/> Nicht so
-        </button>
-        <button onClick={()=>handleSwipe(true)} style={{flex:1,height:56,background:TH.accentLight,border:`1px solid ${TH.accentBorder}`,borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontSize:15,fontWeight:700,color:TH.accent}}>
-          <Icon name="heartFill" size={20} color={TH.accent}/> Gefällt mir
-        </button>
+      <div style={{fontSize:11,color:TH.sub,marginTop:3}}>
+        Geschätzt für {nights} Tage: {formatPrice(flightMid + hotelMid*nights)}
       </div>
-      <button onClick={onDone} style={{width:"100%",marginTop:10,background:"transparent",border:`1px solid ${TH.border}`,borderRadius:12,padding:"10px",fontSize:13,color:TH.mute}}>
-        Überspringen → direkt zur Suche
-      </button>
     </div>
   );
 }
 
-// ── QUIZ ONBOARDING ───────────────────────────────────────────────────────────
-function Onboarding({onComplete,onBack}){
-  const [step,setStep]=useState(0);
-  const [profile,setProfile]=useState({
-    traveler:"Solo",airport:"MUC",duration:"4 Tage",
-    dateFrom:todayPlus(7),dateTo:todayPlus(11),
-    budget:500,hotel:"hotel3",vibes:[],activity:[],
-    style:"",climate:"",region:"",excl:"",flightPref:"",
-    personality:"",tripType:"",
+// ── ADAPTIVE ONBOARDING ───────────────────────────────────────────────────────
+function Onboarding({onComplete, onBack}) {
+  const [step, setStep] = useState(0);
+  const [profile, setProfile] = useState({
+    traveler:"Solo", transport:"flight", airport:"MUC", driveHours:2,
+    duration:"4 Tage", dateFrom:todayPlus(7), dateTo:todayPlus(11),
+    budget:500, hotel:"hotel3",
+    mainType:"", // beach/mountain/city/hiking/party/wellness/culture
+    // Adaptive sub-questions based on mainType:
+    beachType:"", // europe/caribbean/tropical
+    mountainType:"", // alps/dolomites/scotland/norway
+    cityType:"", // culture/nightlife/food/shopping
+    hikingLevel:"", // easy/medium/hard
+    hikingTerrain:"", // alps/coastal/forest/canyon
+    partyType:"", // club/festival/beach-party
+    wellnessType:"", // spa/yoga/detox
+    cultureType:"", // history/art/local-life
+    climate:"", region:"", excl:"", flightPref:"",
+    style:"", extraWishes:"",
   });
 
-  function upd(k,v){setProfile(p=>({...p,[k]:v}));}
-  function toggleArr(k,v){
-    setProfile(p=>{
-      const a=p[k]||[];
-      return{...p,[k]:a.includes(v)?a.filter(x=>x!==v):[...a,v]};
-    });
-  }
+  function upd(k,v) { setProfile(p=>({...p,[k]:v})); }
 
-  const QUIZ_STEPS=[
-    {title:"Wer reist mit dir?",sub:"Das beeinflusst alle Vorschläge",type:"traveler"},
-    {title:"Eher Strand oder Berge?",sub:"Wähle deinen Traumurlaubs-Typ",type:"personality"},
-    {title:"Von wo und wann?",sub:"Abflughafen und Zeitraum",type:"logistics"},
-    {title:"Was ist dein Reisestil?",sub:"Wie reist du am liebsten?",type:"style"},
-    {title:"Was willst du erleben?",sub:"Mehrere möglich",type:"activities"},
-    {title:"Budget & Unterkunft",sub:"Was passt zu dir?",type:"budget"},
-    {title:"Feintuning",sub:"Letzte Details für perfekte Treffer",type:"fine"},
-    {title:"Dein Traumreise-Profil",sub:"Alles auf einen Blick",type:"summary"},
-  ];
+  // Dynamic steps based on mainType selection
+  const getSteps = () => {
+    const base = [
+      {id:"transport", title:"Wie reist du an?", sub:"Flug oder mit dem Auto?"},
+      {id:"traveler", title:"Wer reist mit?", sub:"Das beeinflusst alle Vorschläge"},
+      {id:"mainType", title:"Was für eine Reise?", sub:"Wähle deinen Traumurlaubs-Typ"},
+    ];
 
-  const ACTIVITIES=[
-    {icon:"🏖",label:"Strand & Meer"},{icon:"🥾",label:"Wandern & Natur"},
-    {icon:"🏛",label:"Kultur & Museen"},{icon:"🍕",label:"Essen & Kulinarik"},
-    {icon:"🎉",label:"Nightlife & Party"},{icon:"🧘",label:"Wellness & Spa"},
-    {icon:"🚵",label:"Abenteuer & Sport"},{icon:"🛍",label:"Shopping"},
-    {icon:"📸",label:"Fotografie & Sightseeing"},{icon:"🎭",label:"Events & Festivals"},
-    {icon:"🏊",label:"Wassersport"},{icon:"🍷",label:"Wein & Genuss"},
-  ];
+    // Adaptive sub-questions
+    if (profile.mainType === "beach") base.push({id:"beachSub", title:"Welcher Strand?", sub:"Europa, Karibik oder tropisch?"});
+    if (profile.mainType === "mountain") base.push({id:"mountainSub", title:"Welche Berge?", sub:"Alpen, Dolomiten oder Fjorde?"});
+    if (profile.mainType === "city") base.push({id:"citySub", title:"Was suchst du in der Stadt?", sub:"Kultur, Nightlife oder Kulinarik?"});
+    if (profile.mainType === "hiking") {
+      base.push({id:"hikingLevel", title:"Dein Wanderniveau?", sub:"Wie fit bist du auf dem Trail?"});
+      base.push({id:"hikingTerrain", title:"Welches Gelände?", sub:"Alpen, Küste, Wald oder Canyon?"});
+    }
+    if (profile.mainType === "party") base.push({id:"partySub", title:"Was für Partys?", sub:"Club, Festival oder Strandparty?"});
+    if (profile.mainType === "wellness") base.push({id:"wellnessSub", title:"Welche Auszeit?", sub:"Spa, Yoga oder Detox?"});
 
-  const PERSONALITIES=[
-    {id:"beach",emoji:"🏖",label:"Strand & Sonne",desc:"Entspannen, Meer, Wärme"},
-    {id:"mountain",emoji:"🏔",label:"Berge & Natur",desc:"Wandern, frische Luft, Abenteuer"},
-    {id:"city",emoji:"🏙",label:"Städtetrip",desc:"Kultur, Restaurants, Nightlife"},
-    {id:"mix",emoji:"🌍",label:"Abwechslung",desc:"Von allem etwas"},
-  ];
-
-  const STYLES=[
-    {id:"budget",emoji:"💰",label:"Budget",desc:"Günstig & authentisch"},
-    {id:"comfort",emoji:"✨",label:"Komfort",desc:"Gutes Preis-Leistungs-Verhältnis"},
-    {id:"luxury",emoji:"👑",label:"Luxus",desc:"Das Beste vom Besten"},
-    {id:"adventure",emoji:"🧗",label:"Abenteuer",desc:"Raus aus der Komfortzone"},
-    {id:"culture",emoji:"🎭",label:"Kultur",desc:"Geschichte & lokales Leben"},
-  ];
-
-  const isLast=step===QUIZ_STEPS.length-1;
-  const prog=Math.round(((step+1)/QUIZ_STEPS.length)*100);
-  const currentStep=QUIZ_STEPS[step];
-
-  const renderStep=()=>{
-    if(currentStep.type==="traveler") return(
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        {[["Solo","🧳","Nur ich"],["Zu zweit","💑","Romantiktrip"],["Gruppe","👥","3-6 Personen"],["Familie","👨‍👩‍👧","Mit Kindern"]].map(([label,emoji,desc])=>(
-          <div key={label} onClick={()=>upd("traveler",label)} style={{background:profile.traveler===label?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.traveler===label?TH.accent:TH.border}`,borderRadius:16,padding:"20px 12px",cursor:"pointer",textAlign:"center"}}>
-            <div style={{fontSize:32,marginBottom:8}}>{emoji}</div>
-            <div style={{fontSize:14,fontWeight:700,color:profile.traveler===label?TH.accent:TH.text}}>{label}</div>
-            <div style={{fontSize:11,color:TH.mute,marginTop:3}}>{desc}</div>
-          </div>
-        ))}
-      </div>
+    base.push(
+      {id:"logistics", title:"Wann und wie lange?", sub:"Zeitraum und Dauer"},
+      {id:"budget", title:"Budget & Unterkunft", sub:"Ungefähre Preise werden angezeigt"},
+      {id:"fine", title:"Letzte Details", sub:"Für noch bessere Treffer"},
+      {id:"summary", title:"Dein Profil ist fertig!", sub:"Alles auf einen Blick"},
     );
+    return base;
+  };
 
-    if(currentStep.type==="personality") return(
+  const steps = getSteps();
+  const isLast = step === steps.length - 1;
+  const prog = Math.round(((step+1)/steps.length)*100);
+  const currentStep = steps[step];
+  const nights = parseInt(profile.duration)||4;
+
+  // Price category based on selections
+  const getPriceCategory = () => {
+    if (profile.mainType==="beach" && profile.beachType==="caribbean") return "beach_caribbean";
+    if (profile.mainType==="beach") return "beach_europe";
+    if (profile.mainType==="mountain"||profile.mainType==="hiking") return profile.mainType==="hiking"?"hiking":"mountain_alps";
+    if (profile.mainType==="city") return "city_europe";
+    if (profile.mainType==="party") return "party";
+    return "city_europe";
+  };
+
+  const renderStep = () => {
+    const s = currentStep.id;
+
+    if (s === "transport") return(
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {PERSONALITIES.map(p=>(
-          <div key={p.id} onClick={()=>upd("personality",p.id)} style={{display:"flex",alignItems:"center",gap:16,background:profile.personality===p.id?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.personality===p.id?TH.accent:TH.border}`,borderRadius:16,padding:"16px 18px",cursor:"pointer"}}>
-            <span style={{fontSize:32}}>{p.emoji}</span>
+        {[
+          {id:"flight",emoji:"✈️",label:"Mit dem Flugzeug",desc:"Weltweit in kürzester Zeit"},
+          {id:"car",emoji:"🚗",label:"Mit dem Auto",desc:"Flexibel & entspannt"},
+          {id:"both",emoji:"🔀",label:"Beides möglich",desc:"Zeig mir alle Optionen"},
+        ].map(t=>(
+          <div key={t.id} onClick={()=>upd("transport",t.id)} style={{display:"flex",alignItems:"center",gap:14,background:profile.transport===t.id?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.transport===t.id?TH.accent:TH.border}`,borderRadius:14,padding:"16px 18px",cursor:"pointer"}}>
+            <span style={{fontSize:30}}>{t.emoji}</span>
             <div style={{flex:1}}>
-              <div style={{fontSize:15,fontWeight:700,color:profile.personality===p.id?TH.accent:TH.text}}>{p.label}</div>
-              <div style={{fontSize:12,color:TH.mute,marginTop:2}}>{p.desc}</div>
+              <div style={{fontSize:14,fontWeight:700,color:profile.transport===t.id?TH.accent:TH.text}}>{t.label}</div>
+              <div style={{fontSize:12,color:TH.mute,marginTop:2}}>{t.desc}</div>
             </div>
-            {profile.personality===p.id&&<Icon name="check" size={20} color={TH.accent}/>}
+            {profile.transport===t.id&&<Icon name="check" size={20} color={TH.accent}/>}
+          </div>
+        ))}
+        {(profile.transport==="car"||profile.transport==="both")&&(
+          <div style={{marginTop:4}}>
+            <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Maximale Fahrtzeit</div>
+            <div style={{display:"flex",gap:8}}>
+              {[1,2,3,4,5].map(h=>(
+                <div key={h} onClick={()=>upd("driveHours",h)} style={{flex:1,background:profile.driveHours===h?TH.accentLight:TH.surfaceAlt,border:`1px solid ${profile.driveHours===h?TH.accent:TH.border}`,borderRadius:10,padding:"10px 4px",cursor:"pointer",textAlign:"center"}}>
+                  <div style={{fontSize:15,fontWeight:800,color:profile.driveHours===h?TH.accent:TH.text}}>{h}h</div>
+                  <div style={{fontSize:10,color:TH.mute,marginTop:2}}>{h===1?"Kurz":h<=2?"Nah":h<=3?"Mittel":h<=4?"Weit":"Weit+"}  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {profile.transport!=="car"&&(
+          <div style={{marginTop:4}}>
+            <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Abflughafen</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {AIRPORTS.map(a=>(
+                <div key={a.code} onClick={()=>upd("airport",a.code)} style={{background:profile.airport===a.code?TH.accentLight:TH.surfaceAlt,border:`1px solid ${profile.airport===a.code?TH.accent:TH.border}`,borderRadius:20,padding:"6px 12px",cursor:"pointer",fontSize:13,color:profile.airport===a.code?TH.accent:TH.sub,fontWeight:profile.airport===a.code?700:400}}>
+                  {a.city}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+
+    if (s === "traveler") return(
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        {[["Solo","🧳","Nur ich"],["Zu zweit","💑","Pärchen"],["Gruppe","👥","3-6 Personen"],["Familie","👨‍👩‍👧","Mit Kindern"],["Freunde","🎉","Freundesgruppe"],["Business","💼","Geschäftsreise"]].map(([label,emoji,desc])=>(
+          <div key={label} onClick={()=>upd("traveler",label)} style={{background:profile.traveler===label?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.traveler===label?TH.accent:TH.border}`,borderRadius:14,padding:"16px 12px",cursor:"pointer",textAlign:"center"}}>
+            <div style={{fontSize:28,marginBottom:6}}>{emoji}</div>
+            <div style={{fontSize:13,fontWeight:700,color:profile.traveler===label?TH.accent:TH.text}}>{label}</div>
+            <div style={{fontSize:11,color:TH.mute,marginTop:2}}>{desc}</div>
           </div>
         ))}
       </div>
     );
 
-    if(currentStep.type==="logistics") return(
+    if (s === "mainType") return(
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {[
+          {id:"beach",emoji:"🏖",label:"Strand & Sonne",desc:"Meer, Entspannung, Wärme"},
+          {id:"mountain",emoji:"🏔",label:"Berge & Natur",desc:"Frische Luft, Panorama, Ruhe"},
+          {id:"city",emoji:"🏙",label:"Städtetrip",desc:"Kultur, Essen, Erlebnisse"},
+          {id:"hiking",emoji:"🥾",label:"Wanderreise",desc:"Routen, Hütten, Abenteuer"},
+          {id:"party",emoji:"🎉",label:"Party & Nightlife",desc:"Clubs, Festivals, Fun"},
+          {id:"wellness",emoji:"🧘",label:"Wellness & Erholung",desc:"Spa, Ruhe, Auszeit"},
+          {id:"culture",emoji:"🎭",label:"Kultur & Geschichte",desc:"Museen, Antike, Lokales Leben"},
+          {id:"adventure",emoji:"🧗",label:"Abenteuer & Sport",desc:"Extremsport, Outdoor, Action"},
+        ].map(t=>(
+          <div key={t.id} onClick={()=>upd("mainType",t.id)} style={{display:"flex",alignItems:"center",gap:14,background:profile.mainType===t.id?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.mainType===t.id?TH.accent:TH.border}`,borderRadius:14,padding:"14px 16px",cursor:"pointer"}}>
+            <span style={{fontSize:26}}>{t.emoji}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:14,fontWeight:700,color:profile.mainType===t.id?TH.accent:TH.text}}>{t.label}</div>
+              <div style={{fontSize:12,color:TH.mute}}>{t.desc}</div>
+            </div>
+            {profile.mainType===t.id&&<Icon name="check" size={18} color={TH.accent}/>}
+          </div>
+        ))}
+      </div>
+    );
+
+    if (s === "beachSub") return(
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{fontSize:13,color:TH.mute,marginBottom:4}}>Du hast Strand gewählt – jetzt wird's genauer:</div>
+        {[
+          {id:"europe",emoji:"🌊",label:"Europäisches Mittelmeer",desc:"Spanien, Italien, Griechenland, Portugal – kürzerer Flug",priceHint:"Flug ab ~80€"},
+          {id:"adriatic",emoji:"🏝",label:"Adria & Balkan",desc:"Kroatien, Montenegro, Albanien – noch relativ unentdeckt",priceHint:"Flug ab ~90€"},
+          {id:"canary",emoji:"🌋",label:"Kanarische Inseln",desc:"Teneriffa, Gran Canaria, Fuerteventura – auch im Winter warm",priceHint:"Flug ab ~120€"},
+          {id:"caribbean",emoji:"🦜",label:"Karibik & Fernstrand",desc:"Kuba, Dominikanische Republik, Thailand, Bali",priceHint:"Flug ab ~500€"},
+        ].map(t=>(
+          <div key={t.id} onClick={()=>upd("beachType",t.id)} style={{display:"flex",alignItems:"center",gap:12,background:profile.beachType===t.id?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.beachType===t.id?TH.accent:TH.border}`,borderRadius:14,padding:"14px 16px",cursor:"pointer"}}>
+            <span style={{fontSize:24}}>{t.emoji}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:700,color:profile.beachType===t.id?TH.accent:TH.text}}>{t.label}</div>
+              <div style={{fontSize:11,color:TH.mute,marginTop:2}}>{t.desc}</div>
+              <div style={{fontSize:11,color:TH.accent,marginTop:2}}>{t.priceHint}</div>
+            </div>
+            {profile.beachType===t.id&&<Icon name="check" size={16} color={TH.accent}/>}
+          </div>
+        ))}
+      </div>
+    );
+
+    if (s === "mountainSub") return(
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{fontSize:13,color:TH.mute,marginBottom:4}}>Welche Bergregion interessiert dich?</div>
+        {[
+          {id:"alps",emoji:"🏔",label:"Alpen",desc:"Österreich, Schweiz, Bayern – klassisch & wunderschön",priceHint:"Auto/Zug möglich ab ~50€"},
+          {id:"dolomites",emoji:"🗻",label:"Dolomiten",desc:"Südtirol & Norditalien – dramatische Felstürme",priceHint:"Flug nach Innsbruck ab ~80€"},
+          {id:"norway",emoji:"🌊",label:"Norwegische Fjorde",desc:"Spektakuläre Küstenlandschaft & Wanderwege",priceHint:"Flug ab ~150€"},
+          {id:"scotland",emoji:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",label:"Schottland & Highlands",desc:"Mystische Berge, Burgen, Whisky",priceHint:"Flug ab ~100€"},
+          {id:"balkan",emoji:"🌿",label:"Balkan-Gebirge",desc:"Albanien, Montenegro – wilder & günstiger",priceHint:"Flug ab ~100€"},
+        ].map(t=>(
+          <div key={t.id} onClick={()=>upd("mountainType",t.id)} style={{display:"flex",alignItems:"center",gap:12,background:profile.mountainType===t.id?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.mountainType===t.id?TH.accent:TH.border}`,borderRadius:14,padding:"12px 14px",cursor:"pointer"}}>
+            <span style={{fontSize:22}}>{t.emoji}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:700,color:profile.mountainType===t.id?TH.accent:TH.text}}>{t.label}</div>
+              <div style={{fontSize:11,color:TH.mute}}>{t.desc}</div>
+              <div style={{fontSize:11,color:TH.accent,marginTop:2}}>{t.priceHint}</div>
+            </div>
+            {profile.mountainType===t.id&&<Icon name="check" size={16} color={TH.accent}/>}
+          </div>
+        ))}
+      </div>
+    );
+
+    if (s === "citySub") return(
       <div>
-        <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Abflughafen</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
-          {AIRPORTS.map(a=>(
-            <div key={a.code} onClick={()=>upd("airport",a.code)} style={{background:profile.airport===a.code?TH.accentLight:TH.surfaceAlt,border:`1px solid ${profile.airport===a.code?TH.accent:TH.border}`,borderRadius:20,padding:"7px 14px",cursor:"pointer",fontSize:13,color:profile.airport===a.code?TH.accent:TH.sub,fontWeight:profile.airport===a.code?700:400}}>
-              {a.city}
+        <div style={{fontSize:13,color:TH.mute,marginBottom:10}}>Was zieht dich in die Stadt?</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+          {[
+            {id:"culture",emoji:"🏛",label:"Kultur & Museen",desc:"Kunst, Geschichte"},
+            {id:"nightlife",emoji:"🎵",label:"Nightlife",desc:"Clubs, Bars, Konzerte"},
+            {id:"food",emoji:"🍝",label:"Kulinarik",desc:"Restaurants, Märkte"},
+            {id:"shopping",emoji:"🛍",label:"Shopping",desc:"Mode, Design, Vintage"},
+            {id:"mix",emoji:"🌍",label:"Von allem etwas",desc:"Abwechslung"},
+            {id:"hidden",emoji:"🔍",label:"Geheimtipps",desc:"Abseits der Touristenmassen"},
+          ].map(t=>(
+            <div key={t.id} onClick={()=>upd("cityType",t.id)} style={{background:profile.cityType===t.id?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.cityType===t.id?TH.accent:TH.border}`,borderRadius:12,padding:"12px 10px",cursor:"pointer",textAlign:"center"}}>
+              <div style={{fontSize:22,marginBottom:4}}>{t.emoji}</div>
+              <div style={{fontSize:12,fontWeight:700,color:profile.cityType===t.id?TH.accent:TH.text}}>{t.label}</div>
+              <div style={{fontSize:10,color:TH.mute}}>{t.desc}</div>
             </div>
           ))}
         </div>
+        <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Stadtgröße</div>
+        <div style={{display:"flex",gap:8}}>
+          {[["🌆","Weltstadt","Paris, NYC, Tokyo"],["🏙","Großstadt","Barcelona, Prag"],["🏘","Kleinstadt","Geheimtipp"]].map(([e,l,d])=>(
+            <div key={l} onClick={()=>upd("citySize",l)} style={{flex:1,background:profile.citySize===l?TH.accentLight:TH.surfaceAlt,border:`1px solid ${profile.citySize===l?TH.accent:TH.border}`,borderRadius:12,padding:"10px 6px",cursor:"pointer",textAlign:"center"}}>
+              <div style={{fontSize:20}}>{e}</div>
+              <div style={{fontSize:11,fontWeight:700,color:profile.citySize===l?TH.accent:TH.text,marginTop:3}}>{l}</div>
+              <div style={{fontSize:9,color:TH.mute}}>{d}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    if (s === "hikingLevel") return(
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{fontSize:13,color:TH.mute,marginBottom:4}}>Wie erfahren bist du beim Wandern?</div>
+        {[
+          {id:"easy",emoji:"🌿",label:"Einsteiger / Familie",desc:"Flache Wege, max 3h, befestigte Pfade",timeEst:"2-4 Stunden täglich"},
+          {id:"medium",emoji:"⛰",label:"Erfahren",desc:"Mittelgebirge, 4-6h, auch steinige Pfade",timeEst:"4-6 Stunden täglich"},
+          {id:"hard",emoji:"🧗",label:"Fortgeschritten",desc:"Hochgebirge, Klettersteige, 6h+",timeEst:"6-8 Stunden täglich"},
+          {id:"multi",emoji:"🎒",label:"Mehrtageswanderung",desc:"Von Hütte zu Hütte, mehrere Tage am Stück",timeEst:"Tagesetappen"},
+        ].map(t=>(
+          <div key={t.id} onClick={()=>upd("hikingLevel",t.id)} style={{display:"flex",alignItems:"center",gap:12,background:profile.hikingLevel===t.id?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.hikingLevel===t.id?TH.accent:TH.border}`,borderRadius:14,padding:"14px 16px",cursor:"pointer"}}>
+            <span style={{fontSize:24}}>{t.emoji}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:700,color:profile.hikingLevel===t.id?TH.accent:TH.text}}>{t.label}</div>
+              <div style={{fontSize:11,color:TH.mute}}>{t.desc}</div>
+              <div style={{fontSize:11,color:TH.accent,marginTop:2}}>⏱ {t.timeEst}</div>
+            </div>
+            {profile.hikingLevel===t.id&&<Icon name="check" size={16} color={TH.accent}/>}
+          </div>
+        ))}
+      </div>
+    );
+
+    if (s === "hikingTerrain") return(
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{fontSize:13,color:TH.mute,marginBottom:4}}>Welches Terrain bevorzugst du?</div>
+        {[
+          {id:"alps",emoji:"🏔",label:"Alpin & Hochgebirge",desc:"Schneebedeckte Gipfel, Gletscher, Bergseen",priceHint:"Oft mit Auto erreichbar ab München/Wien"},
+          {id:"coastal",emoji:"🌊",label:"Küstenlandschaft",desc:"Klippen, Meeresblick, mediterrane Landschaft",priceHint:"Portugal Algarve, Cinque Terre, Amalfiküste"},
+          {id:"forest",emoji:"🌲",label:"Wald & Mittelgebirge",desc:"Gemütliche Pfade, Bäche, Wasserfälle",priceHint:"Schwarzwald, Harz, Böhmerwald"},
+          {id:"canyon",emoji:"🏜",label:"Canyon & Schlucht",desc:"Dramatische Schluchten, Felsformationen",priceHint:"Verdon, Plitvice, Tara-Schlucht"},
+          {id:"volcanic",emoji:"🌋",label:"Vulkanisch & Exotisch",desc:"Azoren, Kanaren, Island",priceHint:"Flug ab ~150€"},
+        ].map(t=>(
+          <div key={t.id} onClick={()=>upd("hikingTerrain",t.id)} style={{display:"flex",alignItems:"center",gap:12,background:profile.hikingTerrain===t.id?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.hikingTerrain===t.id?TH.accent:TH.border}`,borderRadius:14,padding:"12px 14px",cursor:"pointer"}}>
+            <span style={{fontSize:22}}>{t.emoji}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:700,color:profile.hikingTerrain===t.id?TH.accent:TH.text}}>{t.label}</div>
+              <div style={{fontSize:11,color:TH.mute}}>{t.desc}</div>
+              <div style={{fontSize:11,color:TH.accent,marginTop:2}}>💡 {t.priceHint}</div>
+            </div>
+            {profile.hikingTerrain===t.id&&<Icon name="check" size={16} color={TH.accent}/>}
+          </div>
+        ))}
+      </div>
+    );
+
+    if (s === "partySub") return(
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {[
+          {id:"club",emoji:"🎧",label:"Club & Elektronik",desc:"Techno, House, die besten DJs",best:"Berlin, Ibiza, Amsterdam"},
+          {id:"festival",emoji:"🎪",label:"Festival",desc:"Mehrtägige Musik-Events",best:"Tomorrowland, Fusion, Wacken"},
+          {id:"beach_party",emoji:"🏖",label:"Beach Party & Szene",desc:"Party am Strand, Sunset Bars",best:"Ibiza, Mykonos, Zante"},
+          {id:"pub",emoji:"🍺",label:"Pub & Bar-Kultur",desc:"Entspannte Abende, Craft Beer, Musik",best:"Dublin, Edinburgh, Prag"},
+        ].map(t=>(
+          <div key={t.id} onClick={()=>upd("partyType",t.id)} style={{display:"flex",alignItems:"center",gap,background:profile.partyType===t.id?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.partyType===t.id?TH.accent:TH.border}`,borderRadius:14,padding:"14px 16px",cursor:"pointer"}}>
+            <span style={{fontSize:26}}>{t.emoji}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:700,color:profile.partyType===t.id?TH.accent:TH.text}}>{t.label}</div>
+              <div style={{fontSize:11,color:TH.mute}}>{t.desc}</div>
+              <div style={{fontSize:11,color:TH.accent,marginTop:2}}>⭐ {t.best}</div>
+            </div>
+            {profile.partyType===t.id&&<Icon name="check" size={16} color={TH.accent}/>}
+          </div>
+        ))}
+      </div>
+    );
+
+    if (s === "wellnessSub") return(
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {[
+          {id:"spa",emoji:"🛁",label:"Spa & Therme",desc:"Massagen, Saunen, Bäder",best:"Budapest, Baden-Baden, Tschechien"},
+          {id:"yoga",emoji:"🧘",label:"Yoga & Meditation",desc:"Retreats, Stille, innere Balance",best:"Griechenland, Portugal, Bali"},
+          {id:"nature",emoji:"🌿",label:"Natur & Stille",desc:"Waldbaden, Ruhe, Entschleunigung",best:"Schwarzwald, Schweden, Island"},
+          {id:"active",emoji:"🏃",label:"Aktive Erholung",desc:"Sport, frische Luft, gesundes Essen",best:"Österreich, Schweiz"},
+        ].map(t=>(
+          <div key={t.id} onClick={()=>upd("wellnessType",t.id)} style={{display:"flex",alignItems:"center",gap:12,background:profile.wellnessType===t.id?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.wellnessType===t.id?TH.accent:TH.border}`,borderRadius:14,padding:"14px 16px",cursor:"pointer"}}>
+            <span style={{fontSize:26}}>{t.emoji}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:700,color:profile.wellnessType===t.id?TH.accent:TH.text}}>{t.label}</div>
+              <div style={{fontSize:11,color:TH.mute}}>{t.desc}</div>
+              <div style={{fontSize:11,color:TH.accent,marginTop:2}}>⭐ {t.best}</div>
+            </div>
+            {profile.wellnessType===t.id&&<Icon name="check" size={16} color={TH.accent}/>}
+          </div>
+        ))}
+      </div>
+    );
+
+    if (s === "logistics") return(
+      <div>
         <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Reisedauer</div>
-        <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
-          {[["2 Tage","WE"],["3 Tage","Langes WE"],["5 Tage","Kurzurlaub"],["7 Tage","1 Woche"],["14 Tage","2 Wochen"]].map(([val,label])=>(
-            <div key={val} onClick={()=>upd("duration",val)} style={{background:profile.duration===val?TH.accentLight:TH.surfaceAlt,border:`1px solid ${profile.duration===val?TH.accent:TH.border}`,borderRadius:10,padding:"10px 12px",cursor:"pointer",textAlign:"center"}}>
-              <div style={{fontSize:11,fontWeight:700,color:profile.duration===val?TH.accent:TH.text}}>{label}</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+          {[["2 Tage","Wochenende"],["3 Tage","Langes WE"],["5 Tage","Kurzurlaub"],["7 Tage","1 Woche"],["10 Tage","10 Tage"],["14 Tage","2 Wochen"]].map(([val,label])=>(
+            <div key={val} onClick={()=>upd("duration",val)} style={{background:profile.duration===val?TH.accentLight:TH.surfaceAlt,border:`1px solid ${profile.duration===val?TH.accent:TH.border}`,borderRadius:10,padding:"10px 14px",cursor:"pointer",textAlign:"center"}}>
+              <div style={{fontSize:12,fontWeight:700,color:profile.duration===val?TH.accent:TH.text}}>{label}</div>
               <div style={{fontSize:10,color:TH.mute}}>{val}</div>
             </div>
           ))}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          {[["Hinflug","dateFrom"],["Rückflug","dateTo"]].map(([label,key])=>(
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          {[["Hinreise","dateFrom"],["Rückreise","dateTo"]].map(([label,key])=>(
             <div key={key}>
               <div style={{fontSize:11,color:TH.mute,marginBottom:4,fontWeight:600}}>{label}</div>
               <input type="date" value={profile[key]} onChange={e=>upd(key,e.target.value)} style={{width:"100%",background:TH.surfaceAlt,border:`1px solid ${TH.border}`,borderRadius:10,padding:"11px 12px",color:TH.text,outline:"none"}}/>
             </div>
           ))}
         </div>
-      </div>
-    );
-
-    if(currentStep.type==="style") return(
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {STYLES.map(s=>(
-          <div key={s.id} onClick={()=>upd("style",s.id)} style={{display:"flex",alignItems:"center",gap:14,background:profile.style===s.id?TH.accentLight:TH.surfaceAlt,border:`2px solid ${profile.style===s.id?TH.accent:TH.border}`,borderRadius:14,padding:"14px 16px",cursor:"pointer"}}>
-            <span style={{fontSize:28}}>{s.emoji}</span>
-            <div style={{flex:1}}>
-              <div style={{fontSize:14,fontWeight:700,color:profile.style===s.id?TH.accent:TH.text}}>{s.label}</div>
-              <div style={{fontSize:12,color:TH.mute,marginTop:2}}>{s.desc}</div>
+        {profile.transport!=="car"&&(
+          <div>
+            <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Bevorzugte Abflugzeit</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {["Frühflug 5-9h","Vormittag 9-13h","Nachmittag 13-18h","Abend 18-23h","Egal – günstigster"].map(f=>(
+                <div key={f} onClick={()=>upd("flightPref",profile.flightPref===f?"":f)} style={{background:profile.flightPref===f?TH.accentLight:TH.surfaceAlt,border:`1px solid ${profile.flightPref===f?TH.accent:TH.border}`,borderRadius:20,padding:"6px 12px",cursor:"pointer",fontSize:12,color:profile.flightPref===f?TH.accent:TH.sub,fontWeight:profile.flightPref===f?700:400}}>{f}</div>
+              ))}
             </div>
-            {profile.style===s.id&&<Icon name="check" size={18} color={TH.accent}/>}
-          </div>
-        ))}
-      </div>
-    );
-
-    if(currentStep.type==="activities") return(
-      <div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {ACTIVITIES.map(a=>(
-            <div key={a.label} onClick={()=>toggleArr("activity",a.label)} style={{display:"flex",alignItems:"center",gap:10,background:profile.activity.includes(a.label)?TH.accentLight:TH.surfaceAlt,border:`1px solid ${profile.activity.includes(a.label)?TH.accent:TH.border}`,borderRadius:12,padding:"12px 14px",cursor:"pointer"}}>
-              <span style={{fontSize:20}}>{a.icon}</span>
-              <span style={{fontSize:12,fontWeight:600,color:profile.activity.includes(a.label)?TH.accent:TH.text}}>{a.label}</span>
-            </div>
-          ))}
-        </div>
-        {profile.activity.includes("Wandern & Natur")&&(
-          <div style={{marginTop:12,background:TH.accentLight,borderRadius:12,padding:"12px 14px",border:`1px solid ${TH.accentBorder}`,fontSize:13,color:TH.accent}}>
-            🥾 Super! Wir zeigen dir auch konkrete Wanderrouten mit Hotels auf dem Weg.
           </div>
         )}
       </div>
     );
 
-    if(currentStep.type==="budget") return(
-      <div>
-        <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Budget pro Person (Flug + Hotel)</div>
-        <div style={{fontSize:40,fontWeight:800,color:TH.accent,marginBottom:8}}>{profile.budget} €</div>
-        <input type="range" min="100" max="5000" step="50" value={profile.budget} onChange={e=>upd("budget",parseInt(e.target.value))} style={{width:"100%",accentColor:TH.accent,marginBottom:8}}/>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:TH.mute,marginBottom:16}}><span>100 €</span><span>5.000 €</span></div>
-        <div style={{display:"flex",gap:6,marginBottom:20}}>
-          {[200,400,700,1200,2500].map(b=>(
-            <div key={b} onClick={()=>upd("budget",b)} style={{flex:1,background:profile.budget===b?TH.accentLight:TH.surfaceAlt,border:`1px solid ${profile.budget===b?TH.accent:TH.border}`,borderRadius:10,padding:"8px 4px",cursor:"pointer",textAlign:"center",fontSize:11,color:profile.budget===b?TH.accent:TH.sub}}>{b}€</div>
-          ))}
-        </div>
-        <div style={{fontSize:12,color:TH.mute,marginBottom:10,fontWeight:600,textTransform:"uppercase"}}>Unterkunft</div>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {HOTEL_CATS.map(c=>(
-            <div key={c.id} onClick={()=>upd("hotel",c.id)} style={{display:"flex",alignItems:"center",gap:12,background:profile.hotel===c.id?TH.accentLight:TH.surfaceAlt,border:`1.5px solid ${profile.hotel===c.id?TH.accent:TH.border}`,borderRadius:12,padding:"12px 14px",cursor:"pointer"}}>
-              <span style={{fontSize:22}}>{c.icon}</span>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:700,color:profile.hotel===c.id?TH.accent:TH.text}}>{c.label}</div>
-                <div style={{fontSize:11,color:TH.mute}}>{c.desc}</div>
+    if (s === "budget") {
+      const cat = getPriceCategory();
+      const est = PRICE_ESTIMATES[cat]||PRICE_ESTIMATES.city_europe;
+      const nightCount = parseInt(profile.duration)||4;
+      const flightEst = Math.round((est.flight[0]+est.flight[1])/2);
+      const hotelEst = Math.round((est.hotel_night[0]+est.hotel_night[1])/2);
+      const totalEst = flightEst + hotelEst * nightCount;
+      return(
+        <div>
+          <div style={{background:TH.accentLight,borderRadius:14,padding:14,border:`1px solid ${TH.accentBorder}`,marginBottom:16}}>
+            <div style={{fontSize:13,fontWeight:700,color:TH.accent,marginBottom:8}}>💡 Ungefähre Preise für deine Auswahl</div>
+            <div style={{display:"flex",flexDirection:"column",gap:4,fontSize:13}}>
+              <div style={{display:"flex",justifyContent:"space-between",color:TH.sub}}>
+                <span>✈️ Flug (Hin+Rück)</span>
+                <span style={{color:TH.accent,fontWeight:700}}>{formatPrice(est.flight[0])}–{formatPrice(est.flight[1])}</span>
               </div>
-              {profile.hotel===c.id&&<Icon name="check" size={16} color={TH.accent}/>}
+              <div style={{display:"flex",justifyContent:"space-between",color:TH.sub}}>
+                <span>🏨 Hotel pro Nacht</span>
+                <span style={{color:TH.accent,fontWeight:700}}>{formatPrice(est.hotel_night[0])}–{formatPrice(est.hotel_night[1])}</span>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",color:TH.text,fontWeight:800,borderTop:`1px solid ${TH.accentBorder}`,paddingTop:6,marginTop:4}}>
+                <span>Gesamt ~{nightCount} Tage</span>
+                <span style={{color:TH.accent}}>{formatPrice(totalEst)}</span>
+              </div>
             </div>
-          ))}
+          </div>
+          <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Dein Budget</div>
+          <div style={{fontSize:40,fontWeight:800,color:profile.budget>=totalEst?TH.accent:TH.amber,marginBottom:8,transition:"color .3s"}}>
+            {formatPrice(profile.budget)}
+          </div>
+          {profile.budget < totalEst * 0.7 && (
+            <div style={{background:TH.amberLight,borderRadius:10,padding:"8px 12px",marginBottom:8,fontSize:12,color:TH.amber,border:`1px solid ${TH.amberBorder}`}}>
+              💡 Für diese Reiseart empfehlen wir mindestens {formatPrice(totalEst)}. Wir suchen trotzdem nach Deals!
+            </div>
+          )}
+          <input type="range" min="100" max="5000" step="50" value={profile.budget} onChange={e=>upd("budget",parseInt(e.target.value))} style={{width:"100%",accentColor:TH.accent,marginBottom:8}}/>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:TH.mute,marginBottom:16}}><span>100€</span><span>5.000€</span></div>
+          <div style={{display:"flex",gap:6,marginBottom:20}}>
+            {[200,400,700,1200,2500].map(b=>(
+              <div key={b} onClick={()=>upd("budget",b)} style={{flex:1,background:profile.budget===b?TH.accentLight:TH.surfaceAlt,border:`1px solid ${profile.budget===b?TH.accent:TH.border}`,borderRadius:10,padding:"8px 4px",cursor:"pointer",textAlign:"center",fontSize:11,color:profile.budget===b?TH.accent:TH.sub,fontWeight:profile.budget===b?700:400}}>{b}€</div>
+            ))}
+          </div>
+          <div style={{fontSize:12,color:TH.mute,marginBottom:10,fontWeight:600,textTransform:"uppercase"}}>Unterkunft</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {HOTEL_CATS.map(c=>(
+              <div key={c.id} onClick={()=>upd("hotel",c.id)} style={{display:"flex",alignItems:"center",gap:12,background:profile.hotel===c.id?TH.accentLight:TH.surfaceAlt,border:`1.5px solid ${profile.hotel===c.id?TH.accent:TH.border}`,borderRadius:12,padding:"12px 14px",cursor:"pointer"}}>
+                <span style={{fontSize:22}}>{c.emoji}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:profile.hotel===c.id?TH.accent:TH.text}}>{c.label}</div>
+                  <div style={{fontSize:11,color:TH.mute}}>{c.desc}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:11,color:TH.sub}}>{formatPrice(est.hotel_night[0])}–{formatPrice(est.hotel_night[1])}/N</div>
+                  {profile.hotel===c.id&&<Icon name="check" size={16} color={TH.accent}/>}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
 
-    if(currentStep.type==="fine") return(
+    if (s === "fine") return(
       <div>
-        <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Bevorzugte Region</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:16}}>
-          {["🌍 Überall","🇪🇺 Europa","🌊 Mittelmeer","🏝 Karibik","🌏 Asien","🗽 USA & Kanada","🌴 Naher Osten","🌅 Überrasch mich!"].map(r=>(
-            <div key={r} onClick={()=>upd("region",profile.region===r?"":r)} style={{background:profile.region===r?TH.accentLight:TH.surfaceAlt,border:`1px solid ${profile.region===r?TH.accent:TH.border}`,borderRadius:20,padding:"7px 14px",cursor:"pointer",fontSize:13,color:profile.region===r?TH.accent:TH.sub,fontWeight:profile.region===r?700:400}}>{r}</div>
-          ))}
-        </div>
-        <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Gewünschtes Klima</div>
+        <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Bevorzugtes Klima</div>
         <div style={{display:"flex",gap:8,marginBottom:16}}>
-          {[["☀️","Heiß","28°+"],["🌤","Warm","22-28°"],["🌥","Mild","15-22°"],["❄️","Kühl","<15°"],["✈️","Egal","Hauptsache weg"]].map(([e,l,d])=>(
+          {[["☀️","Heiß","28°+"],["🌤","Warm","22-28°"],["🌥","Mild","15-22°"],["❄️","Kühl","<15°"],["✈️","Egal","Egal"]].map(([e,l,d])=>(
             <div key={l} onClick={()=>upd("climate",profile.climate===l?"":l)} style={{flex:1,background:profile.climate===l?TH.accentLight:TH.surfaceAlt,border:`1px solid ${profile.climate===l?TH.accent:TH.border}`,borderRadius:12,padding:"10px 4px",cursor:"pointer",textAlign:"center"}}>
               <div style={{fontSize:18}}>{e}</div>
               <div style={{fontSize:10,fontWeight:700,color:profile.climate===l?TH.accent:TH.text,marginTop:3}}>{l}</div>
@@ -468,27 +676,32 @@ function Onboarding({onComplete,onBack}){
             </div>
           ))}
         </div>
-        <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Orte ausschließen?</div>
-        <input value={profile.excl||""} onChange={e=>upd("excl",e.target.value)} placeholder="z.B. Mallorca, Paris..." style={{width:"100%",background:TH.surfaceAlt,border:`1px solid ${TH.border}`,borderRadius:10,padding:"12px 14px",color:TH.text,outline:"none"}}/>
+        <div style={{fontSize:12,color:TH.mute,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Besondere Wünsche</div>
+        <textarea value={profile.extraWishes||""} onChange={e=>upd("extraWishes",e.target.value)} placeholder="z.B. Nähe zum Strand, vegetarisches Essen, barrierefrei, mit Hund..." rows={3} style={{width:"100%",background:TH.surfaceAlt,border:`1px solid ${TH.border}`,borderRadius:10,padding:"12px 14px",color:TH.text,outline:"none",resize:"none"}}/>
+        <div style={{fontSize:12,color:TH.mute,marginTop:10,marginBottom:8,fontWeight:600,textTransform:"uppercase"}}>Orte ausschließen</div>
+        <input value={profile.excl||""} onChange={e=>upd("excl",e.target.value)} placeholder="z.B. Mallorca, Ibiza, Paris..." style={{width:"100%",background:TH.surfaceAlt,border:`1px solid ${TH.border}`,borderRadius:10,padding:"12px 14px",color:TH.text,outline:"none"}}/>
       </div>
     );
 
     // Summary
-    const prefs=loadPrefs();
-    const likedList=Object.entries(prefs.likedTags||{}).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([t])=>t);
+    const mainLabels={beach:"🏖 Strand",mountain:"🏔 Berge",city:"🏙 Städtetrip",hiking:"🥾 Wandern",party:"🎉 Party",wellness:"🧘 Wellness",culture:"🎭 Kultur",adventure:"🧗 Abenteuer"};
     return(
       <div>
-        <div style={{background:TH.accentLight,borderRadius:14,padding:16,border:`1px solid ${TH.accentBorder}`,marginBottom:12}}>
-          <div style={{fontSize:13,color:TH.accent,fontWeight:600,marginBottom:8}}>✨ KI hat dein Profil gelernt</div>
-          {likedList.length>0&&<div style={{fontSize:12,color:TH.sub}}>Du magst: {likedList.join(", ")}</div>}
+        <div style={{background:TH.accentLight,borderRadius:14,padding:14,border:`1px solid ${TH.accentBorder}`,marginBottom:12}}>
+          <div style={{fontSize:14,fontWeight:700,color:TH.accent,marginBottom:4}}>🚀 KI sucht jetzt deinen Traumurlaub</div>
+          <div style={{fontSize:12,color:TH.sub}}>Basierend auf {Object.values(profile).filter(v=>v&&v!=="").length} Präferenzen</div>
         </div>
-        <div style={{background:TH.surfaceAlt,borderRadius:14,padding:16,border:`1px solid ${TH.border}`}}>
+        <div style={{background:TH.surfaceAlt,borderRadius:14,padding:14,border:`1px solid ${TH.border}`}}>
           {[
-            ["Reiseart",profile.traveler],["Von",profile.airport],
+            ["Anreise",profile.transport==="car"?`🚗 Auto bis ${profile.driveHours}h`:`✈️ ${profile.airport}`],
+            ["Reiseart",profile.traveler],
+            ["Urlaubstyp",mainLabels[profile.mainType]||"-"],
             ["Zeitraum",`${profile.dateFrom} → ${profile.dateTo}`],
-            ["Budget",`${profile.budget} €`],["Stil",profile.style||"-"],
-            ["Aktivitäten",profile.activity.slice(0,2).join(", ")||"-"],
-            ["Region",profile.region||"Weltweit"],["Klima",profile.climate||"-"],
+            ["Dauer",profile.duration],
+            ["Budget",formatPrice(profile.budget)],
+            ["Unterkunft",HOTEL_CATS.find(c=>c.id===profile.hotel)?.label||"-"],
+            ["Klima",profile.climate||"Egal"],
+            ["Besondere Wünsche",profile.extraWishes?profile.extraWishes.slice(0,30)+"...":"-"],
           ].map(([k,v])=>(
             <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${TH.border}`}}>
               <span style={{fontSize:13,color:TH.mute}}>{k}</span>
@@ -509,18 +722,25 @@ function Onboarding({onComplete,onBack}){
         <button onClick={()=>step===0?onBack():setStep(s=>s-1)} style={{width:38,height:38,background:TH.surfaceAlt,border:`1px solid ${TH.border}`,borderRadius:10,color:TH.sub,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
           <Icon name="arrowLeft" size={16} color={TH.sub}/>
         </button>
-        <div>
-          <div style={{fontSize:11,color:TH.mute,textTransform:"uppercase"}}>Schritt {step+1} / {QUIZ_STEPS.length}</div>
-          <h2 style={{fontSize:19,fontWeight:800,color:TH.text}}>{QUIZ_STEPS[step].title}</h2>
-          <p style={{fontSize:12,color:TH.mute}}>{QUIZ_STEPS[step].sub}</p>
+        <div style={{flex:1}}>
+          <div style={{fontSize:11,color:TH.mute,textTransform:"uppercase"}}>Schritt {step+1} / {steps.length}</div>
+          <h2 style={{fontSize:18,fontWeight:800,color:TH.text,lineHeight:1.2}}>{currentStep.title}</h2>
+          <p style={{fontSize:12,color:TH.mute}}>{currentStep.sub}</p>
         </div>
       </div>
-      <div style={{flex:1,overflowY:"auto",padding:"14px 16px",WebkitOverflowScrolling:"touch"}}>
+      <div style={{flex:1,overflowY:"auto",padding:"12px 16px",WebkitOverflowScrolling:"touch"}}>
         {renderStep()}
         <div style={{height:16}}/>
       </div>
       <div style={{padding:16,borderTop:`1px solid ${TH.border}`,flexShrink:0,background:TH.bg}}>
-        <button onClick={()=>isLast?onComplete(profile):setStep(s=>s+1)} style={{width:"100%",height:52,background:TH.grad,border:"none",borderRadius:14,color:TH.bg,fontSize:15,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+        <button onClick={()=>{
+          if(isLast){onComplete(profile);}
+          else{
+            // Skip to next relevant step
+            const nextStep=step+1;
+            setStep(nextStep);
+          }
+        }} style={{width:"100%",height:52,background:TH.grad,border:"none",borderRadius:14,color:TH.bg,fontSize:15,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
           {isLast?"🚀 Traumreise finden!":"Weiter"}
           {!isLast&&<Icon name="arrowRight" size={16} color={TH.bg}/>}
         </button>
@@ -530,34 +750,13 @@ function Onboarding({onComplete,onBack}){
 }
 
 // ── HOME ──────────────────────────────────────────────────────────────────────
-function Home({setActive,setShowSwipe,showSwipe,savedTrips}){
-  const [likedDests,setLikedDests]=useState([]);
-  const [dislikedDests,setDislikedDests]=useState([]);
-  const prefs=loadPrefs();
-  const hasPrefs=prefs.liked&&prefs.liked.length>0;
+function Home({setActive, onRandom, savedTrips}) {
+  const [topVotes, setTopVotes] = useState([]);
+  const [loadingVotes, setLoadingVotes] = useState(true);
 
-  const cats=[
-    {label:"Spontan",emoji:"✈️",sub:"Wochenend-Deals"},
-    {label:"Strand",emoji:"🏖",sub:"Sonne & Meer"},
-    {label:"Städtetrip",emoji:"🏙",sub:"Kultur & Lifestyle"},
-    {label:"Wandern",emoji:"🥾",sub:"Routen & Natur"},
-    {label:"Romantik",emoji:"💑",sub:"Pärchen-Trips"},
-    {label:"Abenteuer",emoji:"🧗",sub:"Raus aus der Komfortzone"},
-  ];
-
-  if(showSwipe) return(
-    <div style={{display:"flex",flexDirection:"column"}}>
-      <div style={{padding:"16px 16px 0"}}>
-        <div style={{fontSize:18,fontWeight:800,color:TH.text,marginBottom:4}}>Welche Ziele magst du?</div>
-        <div style={{fontSize:13,color:TH.mute,marginBottom:12}}>Swipen oder tippen – die KI lernt deine Vorlieben</div>
-      </div>
-      <SwipeCards
-        onLike={d=>setLikedDests(l=>[...l,d])}
-        onDislike={d=>setDislikedDests(l=>[...l,d])}
-        onDone={()=>setShowSwipe(false)}
-      />
-    </div>
-  );
+  useEffect(()=>{
+    fetchTopVotes().then(v=>{setTopVotes(v);setLoadingVotes(false);});
+  },[]);
 
   return(
     <div style={{display:"flex",flexDirection:"column"}}>
@@ -566,63 +765,62 @@ function Home({setActive,setShowSwipe,showSwipe,savedTrips}){
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(8,8,8,0.1),rgba(8,8,8,0.88))"}}/>
         <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"20px 20px 28px"}}>
           <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginBottom:4,fontWeight:600,textTransform:"uppercase"}}>Deine nächste Reise</div>
-          <h1 style={{fontSize:28,fontWeight:800,color:"#fff",lineHeight:1.15,marginBottom:14}}>Wohin geht die Reise?</h1>
-          <button onClick={()=>setActive("onboarding")} style={{background:TH.grad,border:"none",borderRadius:14,padding:"13px 22px",fontSize:15,fontWeight:800,color:TH.bg,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:8}}>
-            <Icon name="search" size={16} color={TH.bg}/> Traumreise finden
-          </button>
+          <h1 style={{fontSize:26,fontWeight:800,color:"#fff",lineHeight:1.2,marginBottom:14}}>Wohin geht die Reise?</h1>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setActive("onboarding")} style={{flex:1,background:TH.grad,border:"none",borderRadius:14,padding:"12px 16px",fontSize:14,fontWeight:800,color:TH.bg,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              <Icon name="search" size={15} color={TH.bg}/> Traumreise finden
+            </button>
+            <button onClick={onRandom} style={{background:"rgba(255,255,255,0.2)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:14,padding:"12px 14px",fontSize:14,fontWeight:800,color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              <Icon name="shuffle" size={15} color="#fff"/> Zufällig
+            </button>
+          </div>
         </div>
       </div>
 
-      <div style={{padding:"0 16px",display:"flex",flexDirection:"column",gap:24}}>
-        {!hasPrefs&&(
-          <div style={{background:TH.accentLight,borderRadius:16,padding:16,border:`1px solid ${TH.accentBorder}`}}>
-            <div style={{fontSize:14,fontWeight:700,color:TH.accent,marginBottom:4}}>✨ KI lernt deine Vorlieben</div>
-            <div style={{fontSize:12,color:TH.sub,marginBottom:12}}>Swipen und die KI findet perfekte Reisen für dich</div>
-            <button onClick={()=>setShowSwipe(true)} style={{background:TH.accent,border:"none",borderRadius:10,padding:"10px 16px",fontSize:13,fontWeight:700,color:TH.bg,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-              <Icon name="heartFill" size={14} color={TH.bg}/> Ziele durchswipen
-            </button>
-          </div>
-        )}
+      <div style={{padding:"0 16px",display:"flex",flexDirection:"column",gap:20}}>
 
-        {hasPrefs&&(
-          <div style={{background:TH.surfaceAlt,borderRadius:16,padding:14,border:`1px solid ${TH.border}`}}>
-            <div style={{fontSize:13,fontWeight:700,color:TH.text,marginBottom:2}}>🧠 KI kennt deine Vorlieben</div>
-            <div style={{fontSize:12,color:TH.mute,marginBottom:10}}>
-              Du magst: {Object.entries(prefs.likedTags||{}).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([t])=>t).join(", ")}
-            </div>
-            <button onClick={()=>setShowSwipe(true)} style={{background:"transparent",border:`1px solid ${TH.border}`,borderRadius:8,padding:"6px 12px",fontSize:12,color:TH.sub,cursor:"pointer"}}>
-              Mehr swipen →
-            </button>
-          </div>
-        )}
-
+        {/* Weekly Voting Top 5 */}
         <div>
-          <div style={{fontSize:16,fontWeight:800,color:TH.text,marginBottom:12}}>Reiseart</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-            {cats.map(c=>(
-              <div key={c.label} onClick={()=>setActive("onboarding")} style={{background:TH.surface,border:`1px solid ${TH.border}`,borderRadius:14,padding:"14px 8px",cursor:"pointer",textAlign:"center",boxShadow:TH.shadow}}>
-                <div style={{fontSize:24,marginBottom:6}}>{c.emoji}</div>
-                <div style={{fontSize:12,fontWeight:700,color:TH.text}}>{c.label}</div>
-                <div style={{fontSize:10,color:TH.mute,marginTop:2}}>{c.sub}</div>
-              </div>
-            ))}
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+            <Icon name="trophy" size={18} color={TH.amber}/>
+            <div style={{fontSize:16,fontWeight:800,color:TH.text}}>Diese Woche beliebt</div>
+            <div style={{background:TH.amberLight,border:`1px solid ${TH.amberBorder}`,borderRadius:20,padding:"2px 8px",fontSize:10,color:TH.amber,fontWeight:700}}>VOTING</div>
           </div>
+          {loadingVotes?(
+            <div style={{display:"flex",gap:8,justifyContent:"center",padding:16}}>
+              {[0,1,2].map(i=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:TH.accent,animation:`bounce${i} .8s ease-in-out infinite`,animationDelay:`${i*0.15}s`}}/>)}
+            </div>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {topVotes.map((v,i)=>(
+                <div key={v.dest} onClick={()=>setActive("onboarding")} style={{display:"flex",alignItems:"center",gap:12,background:TH.surface,border:`1px solid ${TH.border}`,borderRadius:12,padding:"10px 14px",cursor:"pointer",overflow:"hidden",position:"relative"}}>
+                  <div style={{position:"absolute",left:0,top:0,bottom:0,width:`${(v.votes/topVotes[0].votes)*100}%`,background:"rgba(251,176,64,0.08)",borderRadius:12,transition:"width 1s"}}/>
+                  <div style={{fontSize:16,fontWeight:800,color:i===0?TH.amber:i===1?"#C0C0C0":i===2?"#CD7F32":TH.mute,minWidth:20}}>#{i+1}</div>
+                  <div style={{width:40,height:40,borderRadius:10,overflow:"hidden",flexShrink:0}}>
+                    <img src={DEST_IMAGES[v.iata]||DEST_IMAGES.default} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={v.dest}/>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:700,color:TH.text}}>{v.dest}</div>
+                    <div style={{fontSize:11,color:TH.mute}}>{v.country}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:13,fontWeight:800,color:TH.amber}}>{v.votes.toLocaleString("de-DE")}</div>
+                    <div style={{fontSize:10,color:TH.mute}}>Votes</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
+        {/* Quick Categories */}
         <div>
-          <div style={{fontSize:16,fontWeight:800,color:TH.text,marginBottom:12}}>🥾 Wanderreisen</div>
-          <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:4}}>
-            {HIKING_DESTINATIONS.map(d=>(
-              <div key={d.dest} onClick={()=>setActive("onboarding")} style={{flexShrink:0,width:160,background:TH.surface,borderRadius:14,overflow:"hidden",border:`1px solid ${TH.border}`,cursor:"pointer"}}>
-                <div style={{position:"relative",height:90}}>
-                  <img src={DEST_IMAGES[d.iata]||DEST_IMAGES.default} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={d.dest}/>
-                  <div style={{position:"absolute",top:6,right:6,background:"rgba(0,0,0,0.7)",borderRadius:20,padding:"2px 8px",fontSize:10,color:"#fff"}}>{d.difficulty}</div>
-                </div>
-                <div style={{padding:"10px 10px 12px"}}>
-                  <div style={{fontSize:13,fontWeight:700,color:TH.text}}>{d.dest}</div>
-                  <div style={{fontSize:11,color:TH.mute}}>{d.region}</div>
-                  <div style={{fontSize:11,color:TH.accent,marginTop:5,fontWeight:600}}>Routen anzeigen →</div>
-                </div>
+          <div style={{fontSize:16,fontWeight:800,color:TH.text,marginBottom:12}}>Schnell starten</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            {[["🏖","Strand"],["🏙","Stadt"],["🥾","Wandern"],["🎉","Party"],["🧘","Wellness"],["🧗","Abenteuer"]].map(([e,l])=>(
+              <div key={l} onClick={()=>setActive("onboarding")} style={{background:TH.surface,border:`1px solid ${TH.border}`,borderRadius:14,padding:"14px 8px",cursor:"pointer",textAlign:"center",boxShadow:TH.shadow}}>
+                <div style={{fontSize:24,marginBottom:6}}>{e}</div>
+                <div style={{fontSize:12,fontWeight:700,color:TH.text}}>{l}</div>
               </div>
             ))}
           </div>
@@ -630,11 +828,11 @@ function Home({setActive,setShowSwipe,showSwipe,savedTrips}){
 
         {savedTrips.length>0&&(
           <div>
-            <div style={{fontSize:16,fontWeight:800,color:TH.text,marginBottom:12}}>❤️ Gespeichert ({savedTrips.length})</div>
+            <div style={{fontSize:16,fontWeight:800,color:TH.text,marginBottom:12}}>❤️ Gespeichert</div>
             <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:4}}>
-              {savedTrips.slice(0,3).map(t=>(
-                <div key={t.id||t.dest} style={{flexShrink:0,width:140,background:TH.surface,borderRadius:12,overflow:"hidden",border:`1px solid ${TH.border}`}}>
-                  <div style={{height:80}}>
+              {savedTrips.slice(0,4).map(t=>(
+                <div key={t.dest} style={{flexShrink:0,width:130,background:TH.surface,borderRadius:12,overflow:"hidden",border:`1px solid ${TH.border}`}}>
+                  <div style={{height:75}}>
                     <img src={DEST_IMAGES[t.iata]||DEST_IMAGES.default} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={t.dest}/>
                   </div>
                   <div style={{padding:"8px 10px"}}>
@@ -653,26 +851,21 @@ function Home({setActive,setShowSwipe,showSwipe,savedTrips}){
 }
 
 // ── RESULTS ───────────────────────────────────────────────────────────────────
-function Results({profile,savedTrips,onSave,onDetail,onHome}){
-  const [trips,setTrips]=useState([]);
-  const [loading,setLoading]=useState(true);
-  const [loadMsg,setLoadMsg]=useState("KI analysiert dein Profil...");
-  const [error,setError]=useState(null);
+function Results({profile, savedTrips, onSave, onDetail, onHome}) {
+  const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadMsg, setLoadMsg] = useState("KI analysiert dein Profil...");
+  const [error, setError] = useState(null);
 
   useEffect(()=>{
     let cancelled=false;
-    const msgs=["KI analysiert dein Profil...","Traumziele werden gesucht...","Routen & Hotels werden gefunden...","Preise werden berechnet...","Beste Deals werden sortiert..."];
+    const msgs=["KI analysiert dein Profil...","Passende Ziele werden gesucht...","Preise werden berechnet...","Beste Deals werden sortiert..."];
     let mi=0;
     const iv=setInterval(()=>{if(!cancelled){mi=(mi+1)%msgs.length;setLoadMsg(msgs[mi]);}},1200);
-
-    const prefs=loadPrefs();
-    const enhancedProfile={...profile,likedDestinations:prefs.liked||[],likedTags:prefs.likedTags||{},dislikedDestinations:prefs.disliked||[]};
-
-    searchTripsWithAI(enhancedProfile)
+    searchTripsWithAI(profile)
       .then(trips=>{if(!cancelled){setTrips(trips||[]);setLoading(false);}})
-      .catch(e=>{if(!cancelled){setError("Suche fehlgeschlagen. Bitte nochmal versuchen.");setLoading(false);}})
+      .catch(e=>{if(!cancelled){setError("Suche fehlgeschlagen.");setLoading(false);}})
       .finally(()=>clearInterval(iv));
-
     return()=>{cancelled=true;clearInterval(iv);};
   },[]);
 
@@ -681,7 +874,7 @@ function Results({profile,savedTrips,onSave,onDetail,onHome}){
       <div style={{width:48,height:48,border:`3px solid ${TH.border}`,borderTopColor:TH.accent,borderRadius:"50%",animation:"spin 1s linear infinite"}}/>
       <div style={{textAlign:"center"}}>
         <div style={{fontSize:15,fontWeight:700,color:TH.text,marginBottom:6}}>{loadMsg}</div>
-        <div style={{fontSize:13,color:TH.mute}}>KI findet deine Traumreise</div>
+        <div style={{fontSize:13,color:TH.mute}}>Einen Moment...</div>
       </div>
     </div>
   );
@@ -690,8 +883,7 @@ function Results({profile,savedTrips,onSave,onDetail,onHome}){
     <div style={{textAlign:"center",padding:"40px 20px"}}>
       <div style={{fontSize:48,marginBottom:16}}>😔</div>
       <div style={{fontSize:16,fontWeight:700,color:TH.text,marginBottom:8}}>{error||"Keine Trips gefunden"}</div>
-      <div style={{fontSize:13,color:TH.mute,marginBottom:20}}>Probiere andere Einstellungen</div>
-      <button onClick={onHome} style={{background:TH.accent,border:"none",borderRadius:12,padding:"12px 24px",fontSize:14,fontWeight:700,color:TH.bg,cursor:"pointer"}}>
+      <button onClick={onHome} style={{background:TH.accent,border:"none",borderRadius:12,padding:"12px 24px",fontSize:14,fontWeight:700,color:TH.bg,cursor:"pointer",marginTop:8}}>
         Neu suchen
       </button>
     </div>
@@ -702,47 +894,43 @@ function Results({profile,savedTrips,onSave,onDetail,onHome}){
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div>
           <h2 style={{fontSize:20,fontWeight:800,color:TH.text}}>Deine Traumreisen</h2>
-          <p style={{fontSize:13,color:TH.mute,marginTop:2}}>{profile.airport} · {profile.duration} · {profile.budget} €</p>
+          <p style={{fontSize:13,color:TH.mute,marginTop:2}}>{profile.transport==="car"?`🚗 Auto ≤${profile.driveHours}h`:`✈️ ${profile.airport}`} · {profile.duration} · {formatPrice(profile.budget)}</p>
         </div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <div style={{display:"flex",alignItems:"center",gap:5,background:TH.accentLight,borderRadius:20,padding:"4px 10px",border:`1px solid ${TH.accentBorder}`}}>
-            <div style={{width:6,height:6,borderRadius:"50%",background:TH.accent}}/>
-            <span style={{fontSize:11,color:TH.accent,fontWeight:700}}>KI</span>
-          </div>
-          <button onClick={onHome} style={{background:TH.surfaceAlt,border:`1px solid ${TH.border}`,borderRadius:8,padding:"6px 10px",fontSize:11,color:TH.sub,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
-            <Icon name="home" size={12} color={TH.sub}/> Home
-          </button>
-        </div>
+        <button onClick={onHome} style={{background:TH.surfaceAlt,border:`1px solid ${TH.border}`,borderRadius:8,padding:"7px 12px",fontSize:11,color:TH.sub,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
+          <Icon name="home" size={12} color={TH.sub}/> Home
+        </button>
       </div>
       {trips.map((trip,i)=>(
         <TripCard key={trip.id||i} trip={trip} isBest={i===0} profile={profile}
           isSaved={savedTrips.some(s=>s.dest===trip.dest)}
-          onSave={()=>onSave(trip)} onDetail={()=>onDetail(trip)}/>
+          onSave={()=>{onSave(trip);voteForTrip(trip.dest,trip.iata);}}
+          onDetail={()=>onDetail(trip)}/>
       ))}
     </div>
   );
 }
 
 // ── TRIP CARD ─────────────────────────────────────────────────────────────────
-function TripCard({trip,isBest,isSaved,onSave,onDetail,profile}){
-  const [weather,setWeather]=useState(null);
-  const [imgErr,setImgErr]=useState(false);
-  const img=imgErr?DEST_IMAGES.default:(DEST_IMAGES[trip.iata]||DEST_IMAGES.default);
+function TripCard({trip, isBest, isSaved, onSave, onDetail, profile}) {
+  const [weather, setWeather] = useState(null);
+  const [imgErr, setImgErr] = useState(false);
+  const img = imgErr?DEST_IMAGES.default:(DEST_IMAGES[trip.iata]||DEST_IMAGES.default);
+  const isDriving = profile.transport === "car";
 
   useEffect(()=>{
-    if(trip.iata&&profile?.dateFrom){
-      fetchWeather(trip.iata,profile.dateFrom).then(w=>{if(w)setWeather(w);});
-    }
+    if(trip.iata&&profile?.dateFrom) fetchWeather(trip.iata,profile.dateFrom).then(w=>{if(w)setWeather(w);});
   },[trip.iata,profile?.dateFrom]);
+
+  const driveHours = isDriving ? estimateDriveHours(profile.airport, DEST_COORDS[trip.iata]?.lat, DEST_COORDS[trip.iata]?.lon) : null;
 
   return(
     <div style={{background:TH.surface,border:`${isBest?"2px":"1px"} solid ${isBest?TH.accent:TH.border}`,borderRadius:20,overflow:"hidden",boxShadow:TH.shadow}} className="fade-up">
       <div style={{position:"relative",height:180}}>
         <img src={img} onError={()=>setImgErr(true)} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={trip.dest}/>
-        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,transparent 35%,rgba(0,0,0,0.8))"}}/>
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,transparent 30%,rgba(0,0,0,0.85))"}}/>
         {isBest&&<div style={{position:"absolute",top:12,left:12,background:TH.grad,borderRadius:20,padding:"4px 12px",fontSize:11,color:TH.bg,fontWeight:800}}>⭐ Beste Wahl</div>}
         {weather&&(
-          <div style={{position:"absolute",top:12,right:48,background:"rgba(0,0,0,0.7)",borderRadius:20,padding:"4px 10px",fontSize:12,color:"#fff",fontWeight:600}}>
+          <div style={{position:"absolute",top:12,right:44,background:"rgba(0,0,0,0.7)",borderRadius:20,padding:"4px 10px",fontSize:12,color:"#fff",fontWeight:600}}>
             {weather.emoji} {weather.max}°/{weather.min}°
           </div>
         )}
@@ -751,21 +939,30 @@ function TripCard({trip,isBest,isSaved,onSave,onDetail,profile}){
         </button>
         <div style={{position:"absolute",bottom:0,left:0,right:0,padding:14}}>
           <div style={{fontSize:20,fontWeight:800,color:"#fff"}}>{trip.dest}</div>
-          <div style={{fontSize:13,color:"rgba(255,255,255,0.7)"}}>{trip.country} · {trip.airline}</div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.7)"}}>
+            {trip.country}
+            {driveHours&&<span style={{marginLeft:8}}>🚗 ~{driveHours}h Fahrt</span>}
+            {!isDriving&&trip.airline&&<span style={{marginLeft:8}}>{trip.airline}</span>}
+          </div>
         </div>
       </div>
 
       <div style={{padding:14}}>
-        {trip.tagline&&<div style={{fontSize:13,color:TH.sub,marginBottom:10,fontStyle:"italic"}}>{trip.tagline}</div>}
-
         {trip.whyPerfect&&(
           <div style={{background:TH.accentLight,borderRadius:10,padding:"9px 12px",marginBottom:10,fontSize:12,color:TH.accent,border:`1px solid ${TH.accentBorder}`,display:"flex",gap:8}}>
             <span>✨</span><span>{trip.whyPerfect}</span>
           </div>
         )}
 
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:10}}>
-          {[["✈️ Abflug",trip.flightTime||"–"],["⏱ Dauer",trip.duration||"–"],["🏨 Hotel/N.",formatPrice(trip.hotelPPN)]].map(([l,v])=>(
+        <div style={{display:"grid",gridTemplateColumns:isDriving?"1fr 1fr":"1fr 1fr 1fr",gap:6,marginBottom:10}}>
+          {isDriving?[
+            ["🚗 Fahrtzeit",driveHours?`~${driveHours}h`:"–"],
+            ["🏨 Hotel/N.",formatPrice(trip.hotelPPN)],
+          ]:[
+            ["✈️ Abflug",trip.flightTime||"–"],
+            ["⏱ Flugzeit",trip.duration||"–"],
+            ["🏨 Hotel/N.",formatPrice(trip.hotelPPN)],
+          ].map(([l,v])=>(
             <div key={l} style={{background:TH.surfaceAlt,borderRadius:10,padding:"8px 6px",border:`1px solid ${TH.border}`,textAlign:"center"}}>
               <div style={{fontSize:10,color:TH.mute,marginBottom:2}}>{l}</div>
               <div style={{fontSize:12,fontWeight:700,color:TH.text}}>{v}</div>
@@ -775,32 +972,37 @@ function TripCard({trip,isBest,isSaved,onSave,onDetail,profile}){
 
         {trip.highlights&&trip.highlights.length>0&&(
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-            {trip.highlights.map(h=>(
+            {trip.highlights.slice(0,3).map(h=>(
               <span key={h} style={{background:TH.surfaceAlt,border:`1px solid ${TH.border}`,borderRadius:20,padding:"3px 10px",fontSize:11,color:TH.sub}}>📍 {h}</span>
             ))}
           </div>
         )}
 
         {trip.tip&&(
-          <div style={{background:TH.amberLight,borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:TH.amber,border:`1px solid ${TH.amber}33`,display:"flex",gap:6}}>
+          <div style={{background:TH.amberLight,borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:TH.amber,border:`1px solid ${TH.amberBorder}`,display:"flex",gap:6}}>
             <span>💡</span><span>{trip.tip}</span>
           </div>
         )}
 
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div>
-            <div style={{fontSize:22,fontWeight:800,color:TH.text}}>{formatPrice(trip.total)}</div>
+            <div style={{fontSize:24,fontWeight:800,color:TH.text}}>{formatPrice(trip.total)}</div>
             <div style={{fontSize:11,color:TH.mute}}>p.P. gesamt</div>
           </div>
-          <div style={{fontSize:13,color:TH.sub}}>Flug: {formatPrice(trip.flightPrice)}</div>
+          {!isDriving&&<div style={{fontSize:13,color:TH.sub}}>Flug: {formatPrice(trip.flightPrice)}</div>}
         </div>
 
         <div style={{display:"flex",gap:8}}>
-          <button onClick={onDetail} style={{flex:1,height:44,background:TH.surface,border:`1px solid ${TH.border}`,borderRadius:12,color:TH.text,fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+          <button onClick={onDetail} style={{flex:1,height:44,background:TH.surface,border:`1px solid ${TH.border}`,borderRadius:12,color:TH.text,fontSize:13,fontWeight:700,cursor:"pointer"}}>
             Details & Routen
           </button>
-          <button onClick={()=>window.open(buildSkyscannerUrl(profile.airport,trip.iata,profile.dateFrom,profile.dateTo),"_blank")} style={{flex:1,height:44,background:TH.grad,border:"none",borderRadius:12,color:TH.bg,fontSize:13,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-            Buchen ✈️
+          <button onClick={()=>{
+            const url = isDriving
+              ? `https://www.google.com/maps/dir/?api=1&destination=${trip.dest}`
+              : buildSkyscannerUrl(profile.airport,trip.iata,profile.dateFrom,profile.dateTo);
+            window.open(url,"_blank");
+          }} style={{flex:1,height:44,background:TH.grad,border:"none",borderRadius:12,color:TH.bg,fontSize:13,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+            {isDriving?"🚗 Route":"✈️ Buchen"}
           </button>
         </div>
       </div>
@@ -809,39 +1011,30 @@ function TripCard({trip,isBest,isSaved,onSave,onDetail,profile}){
 }
 
 // ── DETAIL VIEW ───────────────────────────────────────────────────────────────
-function DetailView({trip,profile,onBack,onBook}){
-  const [weather,setWeather]=useState(null);
-  const [hikingRoutes,setHikingRoutes]=useState([]);
-  const [loading,setLoading]=useState(true);
-  const img=DEST_IMAGES[trip.iata]||DEST_IMAGES.default;
-  const isHiking=profile.activity&&profile.activity.includes("Wandern & Natur");
+function DetailView({trip, profile, onBack}) {
+  const [weather, setWeather] = useState(null);
+  const img = DEST_IMAGES[trip.iata]||DEST_IMAGES.default;
+  const isDriving = profile.transport === "car";
+  const nights = parseInt(profile.duration)||4;
+  const months = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+  const priceFactors = [1.4,1.3,0.9,0.85,0.8,1.2,1.5,1.5,0.9,0.8,0.75,1.1];
+  const base = trip.flightPrice||150;
 
   useEffect(()=>{
-    if(trip.iata&&profile.dateFrom){
-      fetchWeather(trip.iata,profile.dateFrom).then(w=>{if(w)setWeather(w);});
-    }
-
-    // Load AI hiking routes if applicable
-    if(isHiking){
-      const routes=[
-        {name:`${trip.dest} Panorama-Weg`,distance:"12 km",elevation:"450 m",difficulty:"Mittel",duration:"4-5 Std",description:`Wunderschöner Rundweg mit Blick über ${trip.dest}`,hotels:[`Hotel ${trip.dest} Trail Inn`,`${trip.dest} Nature Resort`]},
-        {name:`${trip.dest} Gipfel-Tour`,distance:"8 km",elevation:"650 m",difficulty:"Schwer",duration:"5-6 Std",description:"Anspruchsvolle Tour mit atemberaubenden Ausblicken",hotels:[`Berghotel ${trip.dest}`,`Alpine Lodge ${trip.dest}`]},
-        {name:`${trip.dest} Tal-Wanderung`,distance:"6 km",elevation:"150 m",difficulty:"Leicht",duration:"2-3 Std",description:"Entspannte Wanderung für Anfänger und Familien",hotels:[`${trip.dest} Gasthof`,`Comfort Hotel ${trip.dest}`]},
-      ];
-      setHikingRoutes(routes);
-    }
-    setLoading(false);
+    if(trip.iata&&profile.dateFrom) fetchWeather(trip.iata,profile.dateFrom).then(w=>{if(w)setWeather(w);});
   },[]);
 
-  const months=["Jan","Feb","Mar","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
-  const priceFactors=[1.4,1.3,0.9,0.85,0.8,1.2,1.5,1.5,0.9,0.8,0.75,1.1];
-  const basePrice=trip.flightPrice||150;
+  const hikingRoutes = profile.mainType === "hiking" ? [
+    {name:`${trip.dest} Panorama-Weg`,distance:"12 km",elevation:"450 m",difficulty:"Mittel",duration:"4-5 Std",hotels:[`Hotel Trail Inn ${trip.dest}`,`Nature Resort ${trip.dest}`]},
+    {name:`${trip.dest} Hauptgipfel`,distance:"8 km",elevation:"750 m",difficulty:"Schwer",duration:"6-7 Std",hotels:[`Berghotel ${trip.dest}`,`Alpine Lodge`]},
+    {name:`${trip.dest} Tal-Route`,distance:"5 km",elevation:"120 m",difficulty:"Leicht",duration:"2 Std",hotels:[`Gasthof ${trip.dest}`,`Wanderhotel`]},
+  ] : [];
 
   return(
     <div style={{display:"flex",flexDirection:"column"}}>
       <div style={{position:"relative",height:220}}>
         <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={trip.dest}/>
-        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(0,0,0,0.3),rgba(0,0,0,0.7))"}}/>
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(0,0,0,0.3),rgba(0,0,0,0.75))"}}/>
         <button onClick={onBack} style={{position:"absolute",top:16,left:16,width:40,height:40,background:"rgba(0,0,0,0.6)",border:"none",borderRadius:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
           <Icon name="arrowLeft" size={18} color="#fff"/>
         </button>
@@ -851,60 +1044,59 @@ function DetailView({trip,profile,onBack,onBook}){
         </div>
         {weather&&(
           <div style={{position:"absolute",top:16,right:16,background:"rgba(0,0,0,0.7)",borderRadius:12,padding:"8px 12px",textAlign:"center"}}>
-            <div style={{fontSize:20}}>{weather.emoji}</div>
-            <div style={{fontSize:13,color:"#fff",fontWeight:700}}>{weather.max}°</div>
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.7)"}}>am {profile.dateFrom}</div>
+            <div style={{fontSize:22}}>{weather.emoji}</div>
+            <div style={{fontSize:14,color:"#fff",fontWeight:700}}>{weather.max}°</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.6)"}}>am {profile.dateFrom}</div>
           </div>
         )}
       </div>
 
-      <div style={{padding:"16px 16px",display:"flex",flexDirection:"column",gap:16}}>
+      <div style={{padding:"16px",display:"flex",flexDirection:"column",gap:14}}>
         {trip.whyPerfect&&(
           <div style={{background:TH.accentLight,borderRadius:14,padding:14,border:`1px solid ${TH.accentBorder}`}}>
             <div style={{fontSize:13,fontWeight:700,color:TH.accent,marginBottom:4}}>✨ Warum perfekt für dich</div>
-            <div style={{fontSize:13,color:TH.sub}}>{trip.whyPerfect}</div>
+            <div style={{fontSize:13,color:TH.sub,lineHeight:1.5}}>{trip.whyPerfect}</div>
           </div>
         )}
 
-        <div style={{background:TH.surface,borderRadius:14,padding:14,border:`1px solid ${TH.border}`}}>
-          <div style={{fontSize:14,fontWeight:800,color:TH.text,marginBottom:12}}>📅 Preiskalender</div>
-          <div style={{display:"flex",gap:4,overflowX:"auto"}}>
-            {months.map((m,i)=>{
-              const price=Math.round(basePrice*priceFactors[i]);
-              const isCheap=price<basePrice*0.9;
-              const isSelected=i===new Date(profile.dateFrom).getMonth();
-              return(
-                <div key={m} style={{flexShrink:0,textAlign:"center",padding:"6px 4px",borderRadius:8,background:isSelected?TH.accentLight:isCheap?"rgba(0,229,160,0.1)":"transparent",border:`1px solid ${isSelected?TH.accent:isCheap?TH.accentBorder:TH.border}`,minWidth:44}}>
-                  <div style={{fontSize:10,color:TH.mute}}>{m}</div>
-                  <div style={{fontSize:11,fontWeight:700,color:isCheap?TH.accent:TH.text,marginTop:2}}>{price}€</div>
-                  {isCheap&&<div style={{fontSize:8,color:TH.accent}}>💚</div>}
-                </div>
-              );
-            })}
+        {!isDriving&&(
+          <div style={{background:TH.surface,borderRadius:14,padding:14,border:`1px solid ${TH.border}`}}>
+            <div style={{fontSize:14,fontWeight:800,color:TH.text,marginBottom:12}}>📅 Preiskalender – wann ist es günstig?</div>
+            <div style={{display:"flex",gap:4,overflowX:"auto"}}>
+              {months.map((m,i)=>{
+                const price=Math.round(base*priceFactors[i]);
+                const isCheap=price<base*0.9;
+                const isSelected=i===new Date(profile.dateFrom).getMonth();
+                return(
+                  <div key={m} style={{flexShrink:0,textAlign:"center",padding:"6px 4px",borderRadius:8,background:isSelected?TH.accentLight:isCheap?"rgba(0,229,160,0.08)":"transparent",border:`1px solid ${isSelected?TH.accent:isCheap?TH.accentBorder:TH.border}`,minWidth:42}}>
+                    <div style={{fontSize:10,color:TH.mute}}>{m}</div>
+                    <div style={{fontSize:11,fontWeight:700,color:isCheap?TH.accent:isSelected?TH.accent:TH.text,marginTop:2}}>{price}€</div>
+                    {isCheap&&<div style={{fontSize:8,color:TH.accent}}>💚</div>}
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{fontSize:11,color:TH.mute,marginTop:8}}>💚 = Günstigste Monate für dieses Ziel</div>
           </div>
-          <div style={{fontSize:11,color:TH.mute,marginTop:8}}>💚 = Günstigste Monate</div>
-        </div>
+        )}
 
-        {isHiking&&hikingRoutes.length>0&&(
+        {hikingRoutes.length>0&&(
           <div>
             <div style={{fontSize:14,fontWeight:800,color:TH.text,marginBottom:10}}>🥾 Wanderrouten in {trip.dest}</div>
             {hikingRoutes.map((r,i)=>(
               <div key={i} style={{background:TH.surface,borderRadius:14,padding:14,border:`1px solid ${TH.border}`,marginBottom:10}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
-                  <div>
-                    <div style={{fontSize:14,fontWeight:700,color:TH.text}}>{r.name}</div>
-                    <div style={{fontSize:12,color:TH.mute,marginTop:2}}>{r.description}</div>
-                  </div>
+                  <div style={{fontSize:14,fontWeight:700,color:TH.text}}>{r.name}</div>
                   <span style={{background:r.difficulty==="Leicht"?TH.accentLight:r.difficulty==="Mittel"?TH.amberLight:TH.redLight,color:r.difficulty==="Leicht"?TH.accent:r.difficulty==="Mittel"?TH.amber:TH.red,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,flexShrink:0,marginLeft:8}}>{r.difficulty}</span>
                 </div>
-                <div style={{display:"flex",gap:12,marginBottom:10}}>
+                <div style={{display:"flex",gap:14,marginBottom:10}}>
                   {[["📏",r.distance],["↗️",r.elevation],["⏱",r.duration]].map(([icon,val])=>(
                     <div key={icon} style={{fontSize:12,color:TH.sub}}>{icon} {val}</div>
                   ))}
                 </div>
                 <div style={{fontSize:12,color:TH.mute,marginBottom:6}}>🏨 Hotels auf dem Weg:</div>
                 {r.hotels.map(h=>(
-                  <div key={h} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:`1px solid ${TH.border}`}}>
+                  <div key={h} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${TH.border}`}}>
                     <span style={{fontSize:12,color:TH.text}}>{h}</span>
                     <button onClick={()=>window.open(buildBookingUrl(h,profile.dateFrom,profile.dateTo),"_blank")} style={{background:TH.accentLight,border:`1px solid ${TH.accentBorder}`,borderRadius:8,padding:"4px 10px",fontSize:11,color:TH.accent,cursor:"pointer",fontWeight:700}}>
                       Buchen
@@ -920,7 +1112,7 @@ function DetailView({trip,profile,onBack,onBook}){
           <div style={{background:TH.surface,borderRadius:14,padding:14,border:`1px solid ${TH.border}`}}>
             <div style={{fontSize:14,fontWeight:800,color:TH.text,marginBottom:10}}>📍 Highlights</div>
             {trip.highlights.map(h=>(
-              <div key={h} style={{padding:"8px 0",borderBottom:`1px solid ${TH.border}`,fontSize:13,color:TH.sub,display:"flex",gap:8}}>
+              <div key={h} style={{padding:"7px 0",borderBottom:`1px solid ${TH.border}`,fontSize:13,color:TH.sub,display:"flex",gap:8}}>
                 <span>✅</span><span>{h}</span>
               </div>
             ))}
@@ -930,10 +1122,11 @@ function DetailView({trip,profile,onBack,onBook}){
         <div style={{background:TH.surface,borderRadius:14,padding:14,border:`1px solid ${TH.border}`}}>
           <div style={{fontSize:14,fontWeight:800,color:TH.text,marginBottom:12}}>🎯 Jetzt buchen</div>
           {[
-            {label:"✈️ Flug auf Skyscanner",sub:`${profile.airport} → ${trip.iata} · ${formatPrice(trip.flightPrice)}`,url:buildSkyscannerUrl(profile.airport,trip.iata,profile.dateFrom,profile.dateTo),accent:true},
-            {label:"🏨 Hotel auf Booking.com",sub:`${trip.hotelName||"Hotel suchen"} · ab ${formatPrice(trip.hotelPPN)}/N.`,url:buildBookingUrl(trip.dest,profile.dateFrom,profile.dateTo)},
-            {label:"🎭 Aktivitäten auf GetYourGuide",sub:"Touren, Ausflüge, Erlebnisse",url:buildGetYourGuideUrl(trip.dest)},
-          ].map(b=>(
+            !isDriving&&{label:"✈️ Flug auf Skyscanner",sub:`${profile.airport} → ${trip.iata} · ab ${formatPrice(trip.flightPrice)}`,url:buildSkyscannerUrl(profile.airport,trip.iata,profile.dateFrom,profile.dateTo),accent:true},
+            isDriving&&{label:"🚗 Route auf Google Maps",sub:`Ab ${profile.airport} · ~${estimateDriveHours(profile.airport,DEST_COORDS[trip.iata]?.lat,DEST_COORDS[trip.iata]?.lon)}h Fahrt`,url:`https://www.google.com/maps/dir/?api=1&destination=${trip.dest}`,accent:true},
+            {label:"🏨 Hotel auf Booking.com",sub:`${HOTEL_CATS.find(c=>c.id===profile.hotel)?.label||"Hotel"} · ab ${formatPrice(trip.hotelPPN)}/Nacht`,url:buildBookingUrl(trip.dest,profile.dateFrom,profile.dateTo)},
+            {label:"🎭 Aktivitäten auf GetYourGuide",sub:"Touren, Ausflüge, geführte Wanderungen",url:buildGetYourGuideUrl(trip.dest)},
+          ].filter(Boolean).map(b=>(
             <button key={b.label} onClick={()=>window.open(b.url,"_blank")} style={{width:"100%",background:b.accent?TH.grad:TH.surfaceAlt,border:`1px solid ${b.accent?"transparent":TH.border}`,borderRadius:12,padding:"12px 14px",marginBottom:8,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",textAlign:"left"}}>
               <div>
                 <div style={{fontSize:13,fontWeight:700,color:b.accent?TH.bg:TH.text}}>{b.label}</div>
@@ -949,27 +1142,27 @@ function DetailView({trip,profile,onBack,onBook}){
 }
 
 // ── SAVED ─────────────────────────────────────────────────────────────────────
-function Saved({savedTrips,onRemove,onDetail}){
+function Saved({savedTrips, onRemove, onDetail}) {
   return(
-    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
       <h2 style={{fontSize:20,fontWeight:800,color:TH.text}}>Gespeichert ❤️</h2>
       {savedTrips.length===0?(
         <div style={{textAlign:"center",padding:"60px 20px"}}>
           <div style={{fontSize:48,marginBottom:12}}>💔</div>
           <div style={{fontSize:15,fontWeight:600,color:TH.sub}}>Noch nichts gespeichert</div>
-          <div style={{fontSize:13,color:TH.mute,marginTop:6}}>Herz-Button bei Reisevorschlägen tippen</div>
+          <div style={{fontSize:13,color:TH.mute,marginTop:6}}>Herz-Button bei den Reisevorschlägen tippen</div>
         </div>
       ):savedTrips.map(trip=>(
-        <div key={trip.id||trip.dest} style={{background:TH.surface,border:`1px solid ${TH.border}`,borderRadius:16,overflow:"hidden",boxShadow:TH.shadow}}>
-          <div style={{position:"relative",height:110}}>
+        <div key={trip.dest} style={{background:TH.surface,border:`1px solid ${TH.border}`,borderRadius:16,overflow:"hidden"}}>
+          <div style={{position:"relative",height:100}}>
             <img src={DEST_IMAGES[trip.iata]||DEST_IMAGES.default} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={trip.dest}/>
-            <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.45)",padding:12,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.4)",padding:12,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
               <div style={{fontSize:18,fontWeight:800,color:"#fff"}}>{trip.dest}</div>
-              <div style={{fontSize:16,fontWeight:800,color:TH.accent,background:"rgba(0,0,0,0.5)",borderRadius:8,padding:"2px 8px"}}>{formatPrice(trip.total)}</div>
+              <div style={{fontSize:15,fontWeight:800,color:TH.accent,background:"rgba(0,0,0,0.5)",borderRadius:8,padding:"2px 8px"}}>{formatPrice(trip.total)}</div>
             </div>
           </div>
           <div style={{padding:"10px 14px"}}>
-            <div style={{fontSize:12,color:TH.mute,marginBottom:10}}>{trip.country} · {trip.airline} · Flug {formatPrice(trip.flightPrice)}</div>
+            <div style={{fontSize:12,color:TH.mute,marginBottom:10}}>{trip.country} · {trip.airline||""}</div>
             <div style={{display:"flex",gap:8}}>
               <button onClick={()=>onDetail(trip)} style={{flex:1,height:38,background:TH.accentLight,border:`1px solid ${TH.accentBorder}`,borderRadius:10,color:TH.accent,fontSize:12,fontWeight:700,cursor:"pointer"}}>Details</button>
               <button onClick={()=>onRemove(trip.dest)} style={{width:38,height:38,background:TH.surfaceAlt,border:`1px solid ${TH.border}`,borderRadius:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -984,7 +1177,7 @@ function Saved({savedTrips,onRemove,onDetail}){
 }
 
 // ── BOTTOM NAV ────────────────────────────────────────────────────────────────
-function BottomNav({active,setActive}){
+function BottomNav({active, setActive}) {
   const tabs=[
     {id:"home",icon:"home",label:"Home"},
     {id:"results",icon:"search",label:"Suchen"},
@@ -1003,22 +1196,23 @@ function BottomNav({active,setActive}){
 }
 
 // ── ROOT ──────────────────────────────────────────────────────────────────────
-function TripFind(){
-  const [active,setActive]=useState("home");
-  const [showSwipe,setShowSwipe]=useState(false);
-  const [profile,setProfile]=useState({
-    traveler:"Solo",airport:"MUC",duration:"4 Tage",
-    dateFrom:todayPlus(7),dateTo:todayPlus(11),
-    budget:500,hotel:"hotel3",vibes:[],activity:[],
-    style:"",climate:"",region:"",excl:"",
+function TripFind() {
+  const [active, setActive] = useState("home");
+  const [profile, setProfile] = useState({
+    traveler:"Solo", transport:"flight", airport:"MUC", driveHours:2,
+    duration:"4 Tage", dateFrom:todayPlus(7), dateTo:todayPlus(11),
+    budget:500, hotel:"hotel3", mainType:"",
   });
-  const [savedTrips,setSavedTrips]=useState(()=>{try{return JSON.parse(localStorage.getItem("tf_saved")||"[]")}catch{return[]}});
-  const [detailTrip,setDetailTrip]=useState(null);
-  const [toast,setToast]=useState(null);
+  const [savedTrips, setSavedTrips] = useState(()=>{
+    try{return JSON.parse(localStorage.getItem("tf_saved")||"[]")}catch{return[]}
+  });
+  const [detailTrip, setDetailTrip] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [randomLoading, setRandomLoading] = useState(false);
 
-  function showToast(msg,type="success"){setToast({msg,type});}
+  function showToast(msg, type="success") { setToast({msg,type}); }
 
-  function onSave(trip){
+  function onSave(trip) {
     setSavedTrips(prev=>{
       const exists=prev.some(s=>s.dest===trip.dest);
       const next=exists?prev.filter(s=>s.dest!==trip.dest):[...prev,trip];
@@ -1028,21 +1222,47 @@ function TripFind(){
     });
   }
 
-  function onDetail(trip){setDetailTrip(trip);setActive("detail");}
+  function onDetail(trip) { setDetailTrip(trip); setActive("detail"); }
 
-  const showNav=!["onboarding","detail"].includes(active);
+  function onRandom() {
+    // Random profile generator
+    const types=["beach","mountain","city","hiking","party","wellness","culture","adventure"];
+    const airports=AIRPORTS.map(a=>a.code);
+    const budgets=[300,400,500,700,1000,1500];
+    const durations=["3 Tage","5 Tage","7 Tage"];
+    const randomProfile = {
+      traveler:["Solo","Zu zweit","Gruppe"][Math.floor(Math.random()*3)],
+      transport:"flight",
+      airport:airports[Math.floor(Math.random()*airports.length)],
+      driveHours:2,
+      duration:durations[Math.floor(Math.random()*durations.length)],
+      dateFrom:todayPlus(7+Math.floor(Math.random()*30)),
+      dateTo:todayPlus(14+Math.floor(Math.random()*30)),
+      budget:budgets[Math.floor(Math.random()*budgets.length)],
+      hotel:["hostel","hotel3","hotel4"][Math.floor(Math.random()*3)],
+      mainType:types[Math.floor(Math.random()*types.length)],
+      style:["budget","comfort","luxury"][Math.floor(Math.random()*3)],
+      climate:["","Warm","Heiß"][Math.floor(Math.random()*3)],
+      isRandom:true,
+    };
+    setProfile(randomProfile);
+    showToast("🎲 Zufällige Reise wird gesucht!", "success");
+    setActive("results");
+  }
 
-  const pages={
-    home:<Home setActive={setActive} setShowSwipe={setShowSwipe} showSwipe={showSwipe} savedTrips={savedTrips}/>,
-    onboarding:<Onboarding onComplete={p=>{setProfile(p);setActive("results");}} onBack={()=>setActive("home")}/>,
-    results:<Results profile={profile} savedTrips={savedTrips} onSave={onSave} onDetail={onDetail} onHome={()=>setActive("home")}/>,
-    detail:detailTrip?<DetailView trip={detailTrip} profile={profile} onBack={()=>setActive("results")} onBook={()=>window.open(buildSkyscannerUrl(profile.airport,detailTrip.iata,profile.dateFrom,profile.dateTo),"_blank")}/>:null,
-    saved:<Saved savedTrips={savedTrips} onRemove={dest=>onSave({dest})} onDetail={onDetail}/>,
+  const showNav = !["onboarding","detail"].includes(active);
+
+  const pages = {
+    home: <Home setActive={setActive} onRandom={onRandom} savedTrips={savedTrips}/>,
+    onboarding: <Onboarding onComplete={p=>{setProfile(p);setActive("results");}} onBack={()=>setActive("home")}/>,
+    results: <Results profile={profile} savedTrips={savedTrips} onSave={onSave} onDetail={onDetail} onHome={()=>setActive("home")}/>,
+    detail: detailTrip?<DetailView trip={detailTrip} profile={profile} onBack={()=>setActive("results")}/>:null,
+    saved: <Saved savedTrips={savedTrips} onRemove={dest=>{setSavedTrips(p=>{const n=p.filter(s=>s.dest!==dest);try{localStorage.setItem("tf_saved",JSON.stringify(n));}catch{}return n;});showToast("Entfernt","info");}} onDetail={onDetail}/>,
   };
 
   return(
     <div style={{display:"flex",flexDirection:"column",height:"100dvh",background:TH.bg,fontFamily:"'DM Sans',system-ui,sans-serif",overflow:"hidden",maxWidth:430,margin:"0 auto"}}>
-      {active!=="onboarding"&&active!=="detail"&&(
+      {showNav&&(
         <header style={{height:54,background:TH.surface,borderBottom:`1px solid ${TH.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 18px",flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <span style={{fontSize:17,fontWeight:800,color:TH.text}}>TripFind</span>
@@ -1055,16 +1275,16 @@ function TripFind(){
           )}
         </header>
       )}
-      <main style={{flex:1,overflowY:"auto",padding:active==="onboarding"||active==="home"||active==="detail"?"0":"16px",background:TH.bg,color:TH.text,WebkitOverflowScrolling:"touch"}}>
+      <main style={{flex:1,overflowY:"auto",padding:["onboarding","home","detail"].includes(active)?"0":"16px",background:TH.bg,color:TH.text,WebkitOverflowScrolling:"touch"}}>
         {pages[active]||<div style={{padding:40,textAlign:"center",color:TH.mute}}>Seite nicht gefunden</div>}
       </main>
-      {showNav&&<BottomNav active={active} setActive={act=>{if(act==="results"&&!profile.airport)setActive("onboarding");else setActive(act);}}/>}
+      {showNav&&<BottomNav active={active} setActive={act=>{if(act==="results")setActive("onboarding");else setActive(act);}}/>}
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     </div>
   );
 }
 
-const root=ReactDOM.createRoot(document.getElementById("root"));
+const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<TripFind/>);
 </script>
 </body>
